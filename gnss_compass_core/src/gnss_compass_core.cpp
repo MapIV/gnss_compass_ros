@@ -30,6 +30,44 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   if (maingga_msg_ptr_ == nullptr) {
     return;
   }
+
+  if(maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec() < 0.05) {
+    return;
+  }
+
+  xyz main_pos, sub_pos;
+  double navsat_lat, navsat_lon;
+
+  ggall2fixll(maingga_msg_ptr_, navsat_lat, navsat_lon);
+  llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
+    main_pos.x, main_pos.y, main_pos.z, lc_param_);
+
+  ggall2fixll(subgga_msg_ptr, navsat_lat, navsat_lon);
+  llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
+    sub_pos.x, sub_pos.y, sub_pos.z, lc_param_);
+
+  double diff_x = sub_pos.x - main_pos.x;
+  double diff_y = sub_pos.y - main_pos.y;
+  double theta = std::atan2(diff_x, diff_y);
+
+  tf2::Quaternion localization_quat;
+  localization_quat.setRPY(0, 0, theta);
+  geometry_msgs::Quaternion quat = tf2::toMsg(localization_quat);
+
+  geometry_msgs::PoseStamped pose_msg;
+  pose_msg.header = maingga_msg_ptr_->header;
+  pose_msg.header.frame_id = "map";
+  pose_msg.pose.position.x = main_pos.x;
+  pose_msg.pose.position.y = main_pos.y;
+  pose_msg.pose.position.z = main_pos.z;
+  pose_msg.pose.orientation = quat;
+  pose_pub_.publish(pose_msg);
+
+  odom_msg_.header = pose_msg.header;
+  odom_msg_.child_frame_id = "main_gnss";
+  odom_msg_.pose.pose = pose_msg.pose;
+  odom_pub_.publish(odom_msg_);
+
 }
 
 void GnssCompass::ggall2fixll(const nmea_msgs::Gpgga::ConstPtr & gga_msg_ptr, double & navsat_lat, double & navsat_lon)

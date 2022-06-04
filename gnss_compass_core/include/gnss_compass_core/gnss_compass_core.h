@@ -5,6 +5,9 @@
 #include <nmea_msgs/Gpgga.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/convert.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include "llh_converter/height_converter.hpp"
 #include "llh_converter/llh_converter.hpp"
@@ -30,6 +33,8 @@ private:
 
   nmea_msgs::Gpgga::ConstPtr maingga_msg_ptr_, subgga_msg_ptr_;
 
+  nav_msgs::Odometry odom_msg_;
+
   llh_converter::LLHConverter llh_converter_;
   llh_converter::LLHParam lc_param_;
 
@@ -40,12 +45,5 @@ private:
     double x;
     double y;
     double z;
-  };
-
-  struct llh
-  {
-    double lat;
-    double lon;
-    double height;
   };
 };

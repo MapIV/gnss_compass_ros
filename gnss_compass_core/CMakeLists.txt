@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   llh_converter
+  tf2
+  tf2_geometry_msgs
 )
 
 catkin_package(
