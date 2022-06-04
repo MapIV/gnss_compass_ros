@@ -6,6 +6,9 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 
+#include "llh_converter/height_converter.hpp"
+#include "llh_converter/llh_converter.hpp"
+
 class GnssCompass
 {
 public:
@@ -26,4 +29,23 @@ private:
   ros::Publisher odom_pub_;
 
   nmea_msgs::Gpgga::ConstPtr maingga_msg_ptr_, subgga_msg_ptr_;
+
+  llh_converter::LLHConverter llh_converter_;
+  llh_converter::LLHParam lc_param_;
+
+  void ggall2fixll(const nmea_msgs::Gpgga::ConstPtr & gga_msg_ptr, double & lat, double & lon);
+
+  struct xyz
+  {
+    double x;
+    double y;
+    double z;
+  };
+
+  struct llh
+  {
+    double lat;
+    double lon;
+    double height;
+  };
 };

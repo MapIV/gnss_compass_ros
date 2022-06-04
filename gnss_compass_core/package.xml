@@ -19,14 +19,17 @@
   <build_depend>roscpp</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>nav_msgs</build_depend>
+  <build_depend>llh_converter</build_depend>
   <build_export_depend>nmea_msgs</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>geometry_msgs</build_export_depend>
   <build_export_depend>nav_msgs</build_export_depend>
+  <build_export_depend>llh_converter</build_export_depend>
   <exec_depend>nmea_msgs</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>llh_converter</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
