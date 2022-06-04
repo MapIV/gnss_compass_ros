@@ -1,3 +1,6 @@
 [submodule "util/llh_converter"]
 	path = util/llh_converter
 	url = git@github.com:MapIV/llh_converter.git
+[submodule "util/nmea2fix"]
+	path = util/nmea2fix
+	url = git@github.com:MapIV/nmea2fix.git
