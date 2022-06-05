@@ -3,6 +3,6 @@
 <launch>
 
   <include file="$(dirname)/nmea2fix.launch"/>
-  <include file="$(find gnss_compass_core)/launch/gnss_compass.launch"/>
+  <include file="$(find gnss_compass)/launch/gnss_compass.launch"/>
 
 </launch>

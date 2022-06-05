@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>gnss_compass_core</name>
+  <name>gnss_compass</name>
   <version>0.0.0</version>
-  <description>The gnss_compass_core package</description>
+  <description>The gnss_compass package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
