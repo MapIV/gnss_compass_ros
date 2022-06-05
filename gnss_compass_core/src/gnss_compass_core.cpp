@@ -4,12 +4,12 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
 : nh_(nh), private_nh_(private_nh)
 {
 
-  maingga_sub_ = nh_.subscribe("vehicle/twist", 100, &GnssCompass::callbackMainGga, this);
-  subgga_sub_ = nh_.subscribe("imu", 100, &GnssCompass::callbackSubGga, this);
+  maingga_sub_ = nh_.subscribe("/main/mosaic/gga", 100, &GnssCompass::callbackMainGga, this);
+  subgga_sub_ = nh_.subscribe("/sub/mosaic/gga", 100, &GnssCompass::callbackSubGga, this);
 
-  pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("pose", 10);
+  pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("gnss_compass_pose", 10);
   odom_pub_ =
-    nh_.advertise<nav_msgs::Odometry>("odom", 10);
+    nh_.advertise<nav_msgs::Odometry>("gnss_compass_odom", 10);
 
   // LLHConverter setting
   lc_param_.use_mgrs = true;
@@ -28,10 +28,12 @@ void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg
 void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_ptr)
 {
   if (maingga_msg_ptr_ == nullptr) {
+    ROS_WARN("Main is not subscrubbed.");
     return;
   }
 
   if(maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec() < 0.05) {
+    ROS_WARN("The difference between the main and sub timestamps is too large.");
     return;
   }
 

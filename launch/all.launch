@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+
+  <include file="$(dirname)/nmea2fix.launch"/>
+  <include file="$(find gnss_compass_core)/launch/gnss_compass.launch"/>
+
+</launch>

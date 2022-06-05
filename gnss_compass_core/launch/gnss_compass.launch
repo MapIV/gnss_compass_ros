@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+
+  <node pkg="gnss_compass_core" name="gnss_compass" type="gnss_compass" output="screen"/>
+
+</launch>
