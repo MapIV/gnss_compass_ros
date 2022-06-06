@@ -32,7 +32,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     return;
   }
 
-  if(maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec() < 0.05) {
+  if(maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec() > 0.05) {
     ROS_WARN("The difference between the main and sub timestamps is too large.");
     return;
   }
