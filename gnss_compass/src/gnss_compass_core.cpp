@@ -22,6 +22,12 @@ GnssCompass::~GnssCompass() {}
 
 void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg_ptr)
 {
+  if(maingga_msg_ptr->gps_qual != 4)
+  {
+    ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
+    return;
+  }
+
   maingga_msg_ptr_ = maingga_msg_ptr;
 }
 
@@ -34,6 +40,12 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 
   if(maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec() > 0.05) {
     ROS_WARN("The difference between the main and sub timestamps is too large.");
+    return;
+  }
+
+  if(subgga_msg_ptr->gps_qual != 4)
+  {
+    ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
     return;
   }
 
@@ -50,7 +62,8 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 
   double diff_x = sub_pos.x - main_pos.x;
   double diff_y = sub_pos.y - main_pos.y;
-  double theta = std::atan2(diff_x, diff_y);
+  //double theta = std::atan2(diff_x, diff_y);
+  double theta = M_PI - std::atan2(diff_x, diff_y) + M_PI;
 
   tf2::Quaternion localization_quat;
   localization_quat.setRPY(0, 0, theta);
