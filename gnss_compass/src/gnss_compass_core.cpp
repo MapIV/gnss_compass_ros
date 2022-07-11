@@ -13,7 +13,7 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
 
   // LLHConverter setting
   lc_param_.use_mgrs = true;
-  lc_param_.height_convert_type = llh_converter::ConvertType::NONE;
+  lc_param_.height_convert_type = llh_converter::ConvertType::ORTHO2ELLIPS;
   lc_param_.geoid_type = llh_converter::GeoidType::EGM2008;
 
 }
@@ -24,7 +24,7 @@ void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg
 {
   if(maingga_msg_ptr->gps_qual != 4)
   {
-    ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
+    // ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
     return;
   }
 
@@ -37,15 +37,15 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     ROS_WARN("Main is not subscrubbed.");
     return;
   }
-
-  if(maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec() > 0.05) {
+  double dt = maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec();
+  if(std::abs(dt) > 0.01) {
     ROS_WARN("The difference between the main and sub timestamps is too large.");
     return;
   }
 
   if(subgga_msg_ptr->gps_qual != 4)
   {
-    ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
+    // ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
     return;
   }
 
