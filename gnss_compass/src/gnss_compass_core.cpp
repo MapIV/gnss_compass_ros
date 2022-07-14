@@ -4,6 +4,15 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
 : nh_(nh), private_nh_(private_nh)
 {
 
+  private_nh_.getParam("min_gnss_status", min_gnss_status_);
+  private_nh_.getParam("max_gnss_status", max_gnss_status_);
+  private_nh_.getParam("time_thresshold", time_thresshold_);
+  private_nh_.getParam("yaw_bias", yaw_bias_);
+
+  ROS_INFO(
+    "min_gnss_status: %d, max_gnss_status: %d, time_thresshold: %lf, yaw_bias: %lf", min_gnss_status_,
+    max_gnss_status_, time_thresshold_, yaw_bias_);
+
   maingga_sub_ = nh_.subscribe("/main/mosaic/gga", 100, &GnssCompass::callbackMainGga, this);
   subgga_sub_ = nh_.subscribe("/sub/mosaic/gga", 100, &GnssCompass::callbackSubGga, this);
 
@@ -22,7 +31,9 @@ GnssCompass::~GnssCompass() {}
 
 void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg_ptr)
 {
-  if(maingga_msg_ptr->gps_qual != 4)
+  int gps_qual = maingga_msg_ptr->gps_qual;
+  bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
+  if(!is_gnss_status_ok)
   {
     // ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
     return;
@@ -38,12 +49,14 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     return;
   }
   double dt = maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec();
-  if(std::abs(dt) > 0.01) {
+  if(std::abs(dt) > time_thresshold_) {
     ROS_WARN("The difference between the main and sub timestamps is too large.");
     return;
   }
 
-  if(subgga_msg_ptr->gps_qual != 4)
+  int gps_qual = subgga_msg_ptr->gps_qual;
+  bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
+  if(!is_gnss_status_ok)
   {
     // ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
     return;
@@ -62,8 +75,8 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 
   double diff_x = sub_pos.x - main_pos.x;
   double diff_y = sub_pos.y - main_pos.y;
-  //double theta = std::atan2(diff_x, diff_y);
-  double theta = M_PI - std::atan2(diff_x, diff_y) + M_PI;
+  double diff_z = sub_pos.z - main_pos.z; // TODO: length check
+  double theta = - std::atan2(diff_x, diff_y) + yaw_bias_;
 
   tf2::Quaternion localization_quat;
   localization_quat.setRPY(0, 0, theta);

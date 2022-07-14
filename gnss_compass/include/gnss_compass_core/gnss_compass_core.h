@@ -46,4 +46,10 @@ private:
     double y;
     double z;
   };
+
+  // param
+  int min_gnss_status_;
+  int max_gnss_status_;
+  double time_thresshold_;
+  double yaw_bias_;
 };

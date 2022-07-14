@@ -1,0 +1,7 @@
+# Upper and lower limits of staratus using GNSS
+min_gnss_status : 4
+max_gnss_status : 4
+# Tolerance for the difference between the timestamps of the two antennas [sec]
+time_thresshold : 0.01
+# Yaw bias between the direction of travel and the vector created between the antennas
+yaw_bias: 0.0

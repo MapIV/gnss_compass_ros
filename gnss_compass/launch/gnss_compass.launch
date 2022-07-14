@@ -2,6 +2,10 @@
 
 <launch>
 
-  <node pkg="gnss_compass" name="gnss_compass" type="gnss_compass" output="screen"/>
+  <arg name="param_file" default="$(find gnss_compass)/config/gnss_compass.yaml" />
+
+  <node pkg="gnss_compass" name="gnss_compass" type="gnss_compass" output="screen">
+    <rosparam command="load" file="$(arg param_file)" />
+  </node>
 
 </launch>
