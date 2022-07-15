@@ -3,7 +3,7 @@
 GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
 : nh_(nh), private_nh_(private_nh)
 {
-
+  private_nh_.getParam("gnss_frequency", gnss_frequency_);
   private_nh_.getParam("min_gnss_status", min_gnss_status_);
   private_nh_.getParam("max_gnss_status", max_gnss_status_);
   private_nh_.getParam("time_thresshold", time_thresshold_);
@@ -39,19 +39,32 @@ void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg
     ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
     return;
   }
-
+  if(maingga_msg_ptr != nullptr)
+  {
+    previous_maingga_msg_ptr_ = maingga_msg_ptr_;
+  }
   maingga_msg_ptr_ = maingga_msg_ptr;
+
 }
 
 void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_ptr)
 {
-  if (maingga_msg_ptr_ == nullptr) {
+  if (maingga_msg_ptr_ == nullptr || previous_maingga_msg_ptr_ == nullptr) {
     ROS_WARN("Main is not subscrubbed.");
     return;
   }
-  double dt = maingga_msg_ptr_->header.stamp.toSec() - subgga_msg_ptr->header.stamp.toSec();
-  if(std::abs(dt) > time_thresshold_) {
-    ROS_WARN("The difference between the main and sub timestamps is too large:dt %lf.", dt);
+  double t_pm = previous_maingga_msg_ptr_->header.stamp.toSec();
+  double t_m = maingga_msg_ptr_->header.stamp.toSec();
+  double dt_mm = t_pm - t_m;
+  if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) {
+    ROS_WARN("The difference between timestamps is large:dt_mm %lf.", dt_mm);
+    return;
+  }
+  double t_s = subgga_msg_ptr->header.stamp.toSec();
+  double dt_ms = t_s - t_m;
+  if(std::abs(dt_ms) > time_thresshold_) {
+    ROS_WARN("The difference between timestamps is large:dt_ms %lf.", dt_ms);
+    ROS_WARN("time:m %lf, s %lf",t_m, t_s);
     return;
   }
 
@@ -63,20 +76,35 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     return;
   }
 
-  xyz main_pos, sub_pos;
-  double navsat_lat, navsat_lon;
+  xyz main_pos, previous_main_pos, sub_pos;
+  double navsat_lat, navsat_lon, previous_navsat_lat, previous_navsat_lon;
 
   ggall2fixll(maingga_msg_ptr_, navsat_lat, navsat_lon);
   llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
     main_pos.x, main_pos.y, main_pos.z, lc_param_);
 
+  ggall2fixll(previous_maingga_msg_ptr_, previous_navsat_lat, previous_navsat_lon);
+  llh_converter_.convertDeg2XYZ(previous_navsat_lat, previous_navsat_lon, previous_maingga_msg_ptr_->alt,
+    previous_main_pos.x, previous_main_pos.y, previous_main_pos.z, lc_param_);
+
+  // interpotation: x = a * t + b
+  auto f = [](double x_m, double x_pm, double t_m, double t_pm, double t_s){
+    double a = (x_m - x_pm) / (t_m - t_pm);
+    double b = x_m - a * t_m;
+    return a * t_s + b;
+  };
+
+  double x_inp = f(main_pos.x, previous_main_pos.x, t_m, t_pm, t_s);
+  double y_inp = f(main_pos.y, previous_main_pos.y, t_m, t_pm, t_s);
+  double z_inp = f(main_pos.z, previous_main_pos.z, t_m, t_pm, t_s);
+
   ggall2fixll(subgga_msg_ptr, navsat_lat, navsat_lon);
   llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
     sub_pos.x, sub_pos.y, sub_pos.z, lc_param_);
 
-  double diff_x = sub_pos.x - main_pos.x;
-  double diff_y = sub_pos.y - main_pos.y;
-  double diff_z = sub_pos.z - main_pos.z; // TODO: length check
+  double diff_x = sub_pos.x - x_inp;
+  double diff_y = sub_pos.y - y_inp;
+  double diff_z = sub_pos.z - z_inp;
   double theta = - std::atan2(diff_x, diff_y) + yaw_bias_;
 
   tf2::Quaternion localization_quat;
@@ -102,21 +130,16 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   bool is_beseline_ok = (1.25 <= baseline_length && baseline_length <= 1.36);
   if(!is_beseline_ok)
   {
-    ROS_WARN("mayby mis-FIX:l %lf, yaw %lf, dt %lf",
-      baseline_length, theta * 180 / M_PI, dt);
+    ROS_WARN("mayby mis-FIX:l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
     illigal_odom_pub_.publish(odom_msg_);
     return;
   }
   else {
-    ROS_INFO("normal normal:l %lf, yaw %lf, dt %lf",
-      baseline_length, theta * 180 / M_PI, dt);
+    ROS_INFO("normal normal:l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
   }
-
   
   pose_pub_.publish(pose_msg);
   odom_pub_.publish(odom_msg_);
-
-  previous_subgga_msg_ptr_ = subgga_msg_ptr;
 
 }
 

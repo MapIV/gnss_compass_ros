@@ -35,7 +35,7 @@ private:
 
   tf2_ros::TransformBroadcaster tf2_broadcaster_;
 
-  nmea_msgs::Gpgga::ConstPtr maingga_msg_ptr_, subgga_msg_ptr_;
+  nmea_msgs::Gpgga::ConstPtr maingga_msg_ptr_, previous_maingga_msg_ptr_;
 
   nav_msgs::Odometry odom_msg_;
 
@@ -55,6 +55,7 @@ private:
   };
 
   // param
+  double gnss_frequency_;
   int min_gnss_status_;
   int max_gnss_status_;
   double time_thresshold_;
