@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <launch>
+  <param name="/use_sim_time" value="true" />
 
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find gnss_compass)/rviz/rviz.rviz"/>
+
+  <node pkg="tf" type="static_transform_publisher" name="static_transform_publisher" args="75723.6287 92442.1873 55.5 0 0 0 map base_link 10"/>
   <include file="$(dirname)/nmea2fix.launch"/>
   <include file="$(find gnss_compass)/launch/gnss_compass.launch"/>
 

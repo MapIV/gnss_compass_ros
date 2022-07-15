@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   llh_converter
   tf2
+  tf2_ros
   tf2_geometry_msgs
 )
 
