@@ -8,9 +8,14 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   private_nh_.getParam("max_gnss_status", max_gnss_status_);
   private_nh_.getParam("time_thresshold", time_thresshold_);
   private_nh_.getParam("yaw_bias", yaw_bias_);
+  private_nh_.getParam("use_simple_roswarn", use_simple_roswarn_);
+  private_nh_.getParam("beseline_length", beseline_length_);
+  private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
 
   ROS_INFO("min_gnss_status: %d, max_gnss_status: %d, time_thresshold: %lf, yaw_bias: %lf", min_gnss_status_,
     max_gnss_status_, time_thresshold_, yaw_bias_);
+  ROS_INFO("use_simple_roswarn: %d, beseline_length: %lf, allowable_beseline_length_error: %lf", use_simple_roswarn_,
+    beseline_length_, allowable_beseline_length_error_);
 
   maingga_sub_ = nh_.subscribe("/main/mosaic/gga", 100, &GnssCompass::callbackMainGga, this);
   subgga_sub_ = nh_.subscribe("/sub/mosaic/gga", 100, &GnssCompass::callbackSubGga, this);
@@ -36,7 +41,7 @@ void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg
   bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
   if(!is_gnss_status_ok)
   {
-    ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
+    if(!use_simple_roswarn_) ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
     return;
   }
   if(maingga_msg_ptr != nullptr)
@@ -50,21 +55,22 @@ void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg
 void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_ptr)
 {
   if (maingga_msg_ptr_ == nullptr || previous_maingga_msg_ptr_ == nullptr) {
-    ROS_WARN("Main is not subscrubbed.");
+    if(!use_simple_roswarn_) ROS_WARN("Main is not subscrubbed.");
     return;
   }
+
   double t_pm = previous_maingga_msg_ptr_->header.stamp.toSec();
   double t_m = maingga_msg_ptr_->header.stamp.toSec();
   double dt_mm = t_pm - t_m;
-  if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) {
-    ROS_WARN("The difference between timestamps is large:dt_mm %lf.", dt_mm);
+  if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) { // Up to 150% allowed
+    if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_mm %lf.", dt_mm);
     return;
   }
+
   double t_s = subgga_msg_ptr->header.stamp.toSec();
   double dt_ms = t_s - t_m;
   if(std::abs(dt_ms) > time_thresshold_) {
-    ROS_WARN("The difference between timestamps is large:dt_ms %lf.", dt_ms);
-    ROS_WARN("time:m %lf, s %lf",t_m, t_s);
+    if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_ms %lf.", dt_ms);
     return;
   }
 
@@ -72,7 +78,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
   if(!is_gnss_status_ok)
   {
-    ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
+    if(!use_simple_roswarn_) ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
     return;
   }
 
@@ -126,8 +132,8 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   odom_msg_.pose.pose = pose_msg.pose;
 
   double baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
-  // ROS_INFO("baseline_length: %lf", baseline_length);
-  bool is_beseline_ok = (1.25 <= baseline_length && baseline_length <= 1.36);
+  bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
+    baseline_length <= beseline_length_ + allowable_beseline_length_error_);
   if(!is_beseline_ok)
   {
     ROS_WARN("mayby mis-FIX:l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
@@ -135,7 +141,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     return;
   }
   else {
-    ROS_INFO("normal normal:l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+    ROS_INFO("normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
   }
   
   pose_pub_.publish(pose_msg);
@@ -164,7 +170,6 @@ void GnssCompass::publishTF(const std::string & frame_id, const std::string & ch
 
   tf2_broadcaster_.sendTransform(transform_stamped);
 }
-
 
 void GnssCompass::ggall2fixll(const nmea_msgs::Gpgga::ConstPtr & gga_msg_ptr, double & navsat_lat, double & navsat_lon)
 {

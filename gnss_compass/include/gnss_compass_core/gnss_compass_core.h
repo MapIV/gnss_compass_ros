@@ -60,4 +60,7 @@ private:
   int max_gnss_status_;
   double time_thresshold_;
   double yaw_bias_;
+  bool use_simple_roswarn_;
+  double beseline_length_;
+  double allowable_beseline_length_error_;
 };

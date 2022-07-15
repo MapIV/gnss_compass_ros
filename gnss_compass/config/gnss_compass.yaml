@@ -7,3 +7,10 @@ max_gnss_status : 4
 time_thresshold : 0.03
 # Yaw bias between the direction of travel and the vector created between the antennas
 yaw_bias: 0.0
+# Minimize number of ROS_WARN
+use_simple_roswarn : true
+# Distance between antennas in three dimensions [m]
+beseline_length: 1.30
+# If the calculated baseline length has an error greater than or equal to this threshold, 
+# it is determined to be a missed FIX [m]
+allowable_beseline_length_error: 0.05
