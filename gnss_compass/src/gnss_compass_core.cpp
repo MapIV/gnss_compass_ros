@@ -17,8 +17,8 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   ROS_INFO("use_simple_roswarn: %d, beseline_length: %lf, allowable_beseline_length_error: %lf", use_simple_roswarn_,
     beseline_length_, allowable_beseline_length_error_);
 
-  maingga_sub_ = nh_.subscribe("/main/mosaic/gga", 100, &GnssCompass::callbackMainGga, this);
-  subgga_sub_ = nh_.subscribe("/sub/mosaic/gga", 100, &GnssCompass::callbackSubGga, this);
+  maingga_sub_ = nh_.subscribe("main_gnss_gga", 100, &GnssCompass::callbackMainGga, this);
+  subgga_sub_ = nh_.subscribe("sub_gnss_gga", 100, &GnssCompass::callbackSubGga, this);
 
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("gnss_compass_pose", 10);
   odom_pub_ =
