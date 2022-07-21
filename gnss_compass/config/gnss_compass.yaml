@@ -14,3 +14,5 @@ beseline_length: 1.30
 # If the calculated baseline length has an error greater than or equal to this threshold, 
 # it is determined to be a missed FIX [m]
 allowable_beseline_length_error: 0.05
+# If the number of times that pose is not calculated consecutively exceeds this value, an error is output by diagnostics.
+max_skipping_publish_num: 10

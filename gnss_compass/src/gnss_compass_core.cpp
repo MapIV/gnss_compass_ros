@@ -11,11 +11,12 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   private_nh_.getParam("use_simple_roswarn", use_simple_roswarn_);
   private_nh_.getParam("beseline_length", beseline_length_);
   private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
+  private_nh_.getParam("max_skipping_publish_num", max_skipping_publish_num_);
 
   ROS_INFO("min_gnss_status: %d, max_gnss_status: %d, time_thresshold: %lf, yaw_bias: %lf", min_gnss_status_,
     max_gnss_status_, time_thresshold_, yaw_bias_);
-  ROS_INFO("use_simple_roswarn: %d, beseline_length: %lf, allowable_beseline_length_error: %lf", use_simple_roswarn_,
-    beseline_length_, allowable_beseline_length_error_);
+  ROS_INFO("use_simple_roswarn: %d, beseline_length: %lf, allowable_beseline_length_error: %lf, max_skipping_publish_num: %d", use_simple_roswarn_,
+    beseline_length_, allowable_beseline_length_error_, max_skipping_publish_num_);
 
   maingga_sub_ = nh_.subscribe("main_gnss_gga", 100, &GnssCompass::callbackMainGga, this);
   subgga_sub_ = nh_.subscribe("sub_gnss_gga", 100, &GnssCompass::callbackSubGga, this);
@@ -26,11 +27,15 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   illigal_odom_pub_ =
     nh_.advertise<nav_msgs::Odometry>("illigal_gnss_compass_odom", 10);
 
+  diagnostic_thread_ = std::thread(&GnssCompass::timerDiagnostic, this);
+  diagnostic_thread_.detach();
+
   // LLHConverter setting
   lc_param_.use_mgrs = true;
   lc_param_.height_convert_type = llh_converter::ConvertType::ORTHO2ELLIPS;
   lc_param_.geoid_type = llh_converter::GeoidType::EGM2008;
 
+  skipping_publish_num_ = 0;
 }
 
 GnssCompass::~GnssCompass() {}
@@ -64,6 +69,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   double dt_mm = t_pm - t_m;
   if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) { // Up to 150% allowed
     if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_mm %lf.", dt_mm);
+    skipping_publish_num_++;
     return;
   }
 
@@ -71,6 +77,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   double dt_ms = t_s - t_m;
   if(std::abs(dt_ms) > time_thresshold_) {
     if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_ms %lf.", dt_ms);
+    skipping_publish_num_++;
     return;
   }
 
@@ -79,8 +86,11 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   if(!is_gnss_status_ok)
   {
     if(!use_simple_roswarn_) ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
+    skipping_publish_num_++;
     return;
   }
+
+  skipping_publish_num_ = 0;
 
   xyz main_pos, previous_main_pos, sub_pos;
   double navsat_lat, navsat_lon, previous_navsat_lat, previous_navsat_lon;
@@ -182,5 +192,41 @@ void GnssCompass::ggall2fixll(const nmea_msgs::Gpgga::ConstPtr & gga_msg_ptr, do
     navsat_lon = gga_msg_ptr->lon;
   } else if (gga_msg_ptr->lon_dir == "W") {
     navsat_lon = -gga_msg_ptr->lon;
+  }
+}
+
+void GnssCompass::timerDiagnostic()
+{
+  ros::Rate rate(100);
+  while (ros::ok()) {
+    key_value_stdmap_["skipping_publish_num"] = std::to_string(skipping_publish_num_);
+
+    diagnostic_msgs::DiagnosticStatus diag_status_msg;
+    diag_status_msg.name = "gnss_compass";
+    diag_status_msg.hardware_id = "";
+
+    for (const auto & key_value : key_value_stdmap_) {
+      diagnostic_msgs::KeyValue key_value_msg;
+      key_value_msg.key = key_value.first;
+      key_value_msg.value = key_value.second;
+      diag_status_msg.values.push_back(key_value_msg);
+    }
+
+    diag_status_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
+    diag_status_msg.message = "";
+    if (
+      key_value_stdmap_.count("skipping_publish_num") &&
+      std::stoi(key_value_stdmap_["skipping_publish_num"]) >= max_skipping_publish_num_) {
+      diag_status_msg.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+      diag_status_msg.message += "skipping_publish_num exceed limit. ";
+    }
+
+    diagnostic_msgs::DiagnosticArray diag_msg;
+    diag_msg.header.stamp = ros::Time::now();
+    diag_msg.status.push_back(diag_status_msg);
+
+    diagnostics_pub_.publish(diag_msg);
+
+    rate.sleep();
   }
 }
