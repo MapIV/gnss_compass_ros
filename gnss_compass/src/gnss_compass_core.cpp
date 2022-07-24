@@ -1,8 +1,13 @@
 #include "gnss_compass_core/gnss_compass_core.h"
 
 GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
-: nh_(nh), private_nh_(private_nh)
+: nh_(nh),
+  private_nh_(private_nh),
+  tf2_listener_(tf2_buffer_)
 {
+  private_nh_.getParam("base_frame", base_frame_);
+  private_nh_.getParam("use_change_of_sensor_frame", use_change_of_sensor_frame_);
+  private_nh_.getParam("sensor_frame", sensor_frame_);
   private_nh_.getParam("gnss_frequency", gnss_frequency_);
   private_nh_.getParam("min_gnss_status", min_gnss_status_);
   private_nh_.getParam("max_gnss_status", max_gnss_status_);
@@ -13,6 +18,11 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
   private_nh_.getParam("max_skipping_publish_num", max_skipping_publish_num_);
 
+  ROS_INFO("base_frame_id: %s", base_frame_.c_str());
+  if(use_change_of_sensor_frame_)
+  {
+    ROS_INFO("sensor_frame_id: %s", sensor_frame_.c_str());
+  }
   ROS_INFO("min_gnss_status: %d, max_gnss_status: %d, time_thresshold: %lf, yaw_bias: %lf", min_gnss_status_,
     max_gnss_status_, time_thresshold_, yaw_bias_);
   ROS_INFO("use_simple_roswarn: %d, beseline_length: %lf, allowable_beseline_length_error: %lf, max_skipping_publish_num: %d", use_simple_roswarn_,
@@ -22,10 +32,8 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   subgga_sub_ = nh_.subscribe("sub_gnss_gga", 100, &GnssCompass::callbackSubGga, this);
 
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("gnss_compass_pose", 10);
-  odom_pub_ =
-    nh_.advertise<nav_msgs::Odometry>("gnss_compass_odom", 10);
-  illigal_odom_pub_ =
-    nh_.advertise<nav_msgs::Odometry>("illigal_gnss_compass_odom", 10);
+  odom_pub_ = nh_.advertise<nav_msgs::Odometry>("gnss_compass_odom", 10);
+  illigal_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("illigal_gnss_compass_odom", 10);
 
   diagnostic_thread_ = std::thread(&GnssCompass::timerDiagnostic, this);
   diagnostic_thread_.detach();
@@ -135,11 +143,30 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   pose_msg.pose.position.z = main_pos.z;
   pose_msg.pose.orientation = quat;
 
-  publishTF("map", "main_gnss", pose_msg);
+  std::string sensor_frame;
+  if(use_change_of_sensor_frame_)
+  {
+    sensor_frame = sensor_frame_;
+  }
+  else
+  {
+    sensor_frame = maingga_msg_ptr_->header.frame_id;
+  }
 
-  odom_msg_.header = pose_msg.header;
-  odom_msg_.child_frame_id = "main_gnss";
-  odom_msg_.pose.pose = pose_msg.pose;
+  // get TF sensor to base
+  geometry_msgs::TransformStamped::Ptr TF_sensor_to_base_ptr(new geometry_msgs::TransformStamped);
+  getTransform(sensor_frame, base_frame_, TF_sensor_to_base_ptr);
+
+  // transform pose_frame to map_frame
+  geometry_msgs::PoseStamped::Ptr transformed_pose_msg_ptr(
+    new geometry_msgs::PoseStamped);
+  tf2::doTransform(pose_msg, *transformed_pose_msg_ptr, *TF_sensor_to_base_ptr);
+
+  publishTF("map", "main_gnss_base_link", *transformed_pose_msg_ptr);
+
+  odom_msg_.header = transformed_pose_msg_ptr->header;
+  odom_msg_.child_frame_id = "main_gnss_base_link";
+  odom_msg_.pose.pose = transformed_pose_msg_ptr->pose;
 
   double baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
   bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
@@ -154,7 +181,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     ROS_INFO("normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
   }
   
-  pose_pub_.publish(pose_msg);
+  pose_pub_.publish(transformed_pose_msg_ptr);
   odom_pub_.publish(odom_msg_);
 
 }
@@ -179,6 +206,46 @@ void GnssCompass::publishTF(const std::string & frame_id, const std::string & ch
   transform_stamped.transform.rotation.w = tf_quaternion.w();
 
   tf2_broadcaster_.sendTransform(transform_stamped);
+}
+
+bool GnssCompass::getTransform(
+  const std::string & target_frame, const std::string & source_frame,
+  const geometry_msgs::TransformStamped::Ptr & transform_stamped_ptr)
+{
+  if (target_frame == source_frame) {
+    transform_stamped_ptr->header.stamp = ros::Time::now();
+    transform_stamped_ptr->header.frame_id = target_frame;
+    transform_stamped_ptr->child_frame_id = source_frame;
+    transform_stamped_ptr->transform.translation.x = 0.0;
+    transform_stamped_ptr->transform.translation.y = 0.0;
+    transform_stamped_ptr->transform.translation.z = 0.0;
+    transform_stamped_ptr->transform.rotation.x = 0.0;
+    transform_stamped_ptr->transform.rotation.y = 0.0;
+    transform_stamped_ptr->transform.rotation.z = 0.0;
+    transform_stamped_ptr->transform.rotation.w = 1.0;
+    return true;
+  }
+
+  try {
+    *transform_stamped_ptr =
+      tf2_buffer_.lookupTransform(target_frame, source_frame, ros::Time(0), ros::Duration(1.0));
+  } catch (tf2::TransformException & ex) {
+    ROS_WARN("%s", ex.what());
+    ROS_ERROR("Please publish TF %s to %s", target_frame.c_str(), source_frame.c_str());
+
+    transform_stamped_ptr->header.stamp = ros::Time::now();
+    transform_stamped_ptr->header.frame_id = target_frame;
+    transform_stamped_ptr->child_frame_id = source_frame;
+    transform_stamped_ptr->transform.translation.x = 0.0;
+    transform_stamped_ptr->transform.translation.y = 0.0;
+    transform_stamped_ptr->transform.translation.z = 0.0;
+    transform_stamped_ptr->transform.rotation.x = 0.0;
+    transform_stamped_ptr->transform.rotation.y = 0.0;
+    transform_stamped_ptr->transform.rotation.z = 0.0;
+    transform_stamped_ptr->transform.rotation.w = 1.0;
+    return false;
+  }
+  return true;
 }
 
 void GnssCompass::ggall2fixll(const nmea_msgs::Gpgga::ConstPtr & gga_msg_ptr, double & navsat_lat, double & navsat_lon)
