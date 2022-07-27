@@ -5,7 +5,7 @@ use_change_of_sensor_frame: true
 # If use_change_of_sensor_frame is true, the following is used for sensor_frame to base_link tf conversion.
 sensor_frame: "gnss_link"
 # Main gnss antenna data acquisition cycle
-gnss_hz : 50.0
+gnss_frequency : 50.0
 # Upper and lower limits of staratus using GNSS
 min_gnss_status : 4
 max_gnss_status : 4

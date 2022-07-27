@@ -34,6 +34,7 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("gnss_compass_pose", 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("gnss_compass_odom", 10);
   illigal_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("illigal_gnss_compass_odom", 10);
+  diagnostics_pub_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
 
   diagnostic_thread_ = std::thread(&GnssCompass::timerDiagnostic, this);
   diagnostic_thread_.detach();
@@ -69,6 +70,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 {
   if (maingga_msg_ptr_ == nullptr || previous_maingga_msg_ptr_ == nullptr) {
     if(!use_simple_roswarn_) ROS_WARN("Main is not subscrubbed.");
+    skipping_publish_num_++;
     return;
   }
 
@@ -83,7 +85,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 
   double t_s = subgga_msg_ptr->header.stamp.toSec();
   double dt_ms = t_s - t_m;
-  if(std::abs(dt_ms) > time_thresshold_) {
+  if(std::abs(dt_ms) > time_thresshold_ || dt_ms < 0) {
     if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_ms %lf.", dt_ms);
     skipping_publish_num_++;
     return;
@@ -173,7 +175,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     baseline_length <= beseline_length_ + allowable_beseline_length_error_);
   if(!is_beseline_ok)
   {
-    ROS_WARN("mayby mis-FIX:l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+    ROS_WARN("mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
     illigal_odom_pub_.publish(odom_msg_);
     return;
   }
