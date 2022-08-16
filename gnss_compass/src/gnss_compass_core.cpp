@@ -290,6 +290,7 @@ void GnssCompass::timerDiagnostic()
       std::stoi(key_value_stdmap_["skipping_publish_num"]) >= max_skipping_publish_num_) {
       diag_status_msg.level = diagnostic_msgs::DiagnosticStatus::ERROR;
       diag_status_msg.message += "skipping_publish_num exceed limit. ";
+      ROS_WARN("Emergency! skipping_publish_num: %d", skipping_publish_num_);
     }
 
     diagnostic_msgs::DiagnosticArray diag_msg;
