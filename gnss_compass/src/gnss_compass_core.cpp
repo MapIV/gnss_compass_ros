@@ -164,6 +164,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     new geometry_msgs::PoseStamped);
   tf2::doTransform(pose_msg, *transformed_pose_msg_ptr, *TF_sensor_to_base_ptr);
   std::string map_frame = "map";
+  transformed_pose_msg_ptr->header = pose_msg.header;
   transformed_pose_msg_ptr->header.frame_id = map_frame;
 
   publishTF(map_frame, "gnss_compass_base_link", *transformed_pose_msg_ptr);
