@@ -40,7 +40,8 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   diagnostic_thread_.detach();
 
   // LLHConverter setting
-  lc_param_.use_mgrs = true;
+  lc_param_.use_mgrs = false;
+  lc_param_.plane_num = 7;
   lc_param_.height_convert_type = llh_converter::ConvertType::ORTHO2ELLIPS;
   lc_param_.geoid_type = llh_converter::GeoidType::EGM2008;
 
@@ -114,6 +115,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     previous_main_pos.x, previous_main_pos.y, previous_main_pos.z, lc_param_);
 
   // interpotation: x = a * t + b
+  // m:main, pm:previous main, s:sub
   auto f = [](double x_m, double x_pm, double t_m, double t_pm, double t_s){
     double a = (x_m - x_pm) / (t_m - t_pm);
     double b = x_m - a * t_m;
@@ -162,10 +164,38 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   // transform pose_frame to map_frame
   geometry_msgs::PoseStamped::Ptr transformed_pose_msg_ptr(
     new geometry_msgs::PoseStamped);
-  tf2::doTransform(pose_msg, *transformed_pose_msg_ptr, *TF_sensor_to_base_ptr);
+
   std::string map_frame = "map";
   transformed_pose_msg_ptr->header = pose_msg.header;
   transformed_pose_msg_ptr->header.frame_id = map_frame;
+
+  geometry_msgs::TransformStamped TF_map_to_pose;
+  TF_map_to_pose.transform.translation.x = pose_msg.pose.position.x;
+  TF_map_to_pose.transform.translation.y = pose_msg.pose.position.y;
+  TF_map_to_pose.transform.translation.z = pose_msg.pose.position.z;
+  TF_map_to_pose.transform.rotation.x = pose_msg.pose.orientation.x;
+  TF_map_to_pose.transform.rotation.y = pose_msg.pose.orientation.y;
+  TF_map_to_pose.transform.rotation.z = pose_msg.pose.orientation.z;
+  TF_map_to_pose.transform.rotation.w = pose_msg.pose.orientation.w;
+
+  TF_sensor_to_base_ptr->transform;
+  TF_map_to_pose.transform;
+  tf2::Transform TF2_map_to_pose;
+  tf2::Transform TF2_sensor_to_base;
+  tf2::convert(TF_map_to_pose.transform, TF2_map_to_pose);
+  tf2::convert(TF_sensor_to_base_ptr->transform, TF2_sensor_to_base);
+  tf2::Transform TF2_map_to_base = TF2_map_to_pose * TF2_sensor_to_base;
+
+  geometry_msgs::Transform TF_sensor_to_base;
+  TF_sensor_to_base = tf2::toMsg(TF2_map_to_base);
+
+  transformed_pose_msg_ptr->pose.position.x = TF_sensor_to_base.translation.x;
+  transformed_pose_msg_ptr->pose.position.y = TF_sensor_to_base.translation.y;
+  transformed_pose_msg_ptr->pose.position.z = TF_sensor_to_base.translation.z;
+  transformed_pose_msg_ptr->pose.orientation.x = TF_sensor_to_base.rotation.x;
+  transformed_pose_msg_ptr->pose.orientation.y = TF_sensor_to_base.rotation.y;
+  transformed_pose_msg_ptr->pose.orientation.z = TF_sensor_to_base.rotation.z;
+  transformed_pose_msg_ptr->pose.orientation.w = TF_sensor_to_base.rotation.w;
 
   publishTF(map_frame, "gnss_compass_base_link", *transformed_pose_msg_ptr);
 
