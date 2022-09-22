@@ -3,8 +3,8 @@
 ROS1 Package to calculate position and orientation using two gnss receivers .
 
 Note.)
-RTK positioning is required for each GNSS receiver.
-In the standard configuration, pose is only published when two antennas are in RTK-FIX..
+RTK positioning is required for each GNSS receiver.  
+In the standard configuration, pose is only published when two antennas are in RTK-FIX.
 
 ```
 roslaunch gnss_compass gnss_compass.launch
