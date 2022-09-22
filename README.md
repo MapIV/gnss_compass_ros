@@ -30,6 +30,6 @@ catkin_make -DCMAKE_BUILD_TYPE=Release
 - output  
 /gnss_compass_pose (geometry_msgs/PoseStamped)  
 /gnss_compass_odom  (nav_msgs/Odometry)  
-/illigal_gnss_compass_odom  (nav_msgs/Odometry) 
+/illigal_gnss_compass_odom  (nav_msgs/Odometry)  
 /diagnostics  ([diagnostic_msgs/DiagnosticArray)  
 /tf(from "map" to "base_link")  
