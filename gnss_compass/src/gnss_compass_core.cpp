@@ -5,7 +5,10 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   private_nh_(private_nh),
   tf2_listener_(tf2_buffer_)
 {
+  private_nh_.getParam("map_frame", map_frame_);
   private_nh_.getParam("base_frame", base_frame_);
+  private_nh_.getParam("use_mgrs", use_mgrs_);
+  private_nh_.getParam("plane_num", plane_num_);
   private_nh_.getParam("use_change_of_sensor_frame", use_change_of_sensor_frame_);
   private_nh_.getParam("sensor_frame", sensor_frame_);
   private_nh_.getParam("gnss_frequency", gnss_frequency_);
@@ -34,13 +37,15 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("gnss_compass_pose", 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("gnss_compass_odom", 10);
   illigal_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("illigal_gnss_compass_odom", 10);
+  diagnostics_pub_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
 
   diagnostic_thread_ = std::thread(&GnssCompass::timerDiagnostic, this);
   diagnostic_thread_.detach();
 
   // LLHConverter setting
-  lc_param_.use_mgrs = true;
-  lc_param_.height_convert_type = llh_converter::ConvertType::ORTHO2ELLIPS;
+  lc_param_.use_mgrs = use_mgrs_;
+  lc_param_.plane_num = plane_num_;
+  lc_param_.height_convert_type = llh_converter::ConvertType::NONE;
   lc_param_.geoid_type = llh_converter::GeoidType::EGM2008;
 
   skipping_publish_num_ = 0;
@@ -69,6 +74,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 {
   if (maingga_msg_ptr_ == nullptr || previous_maingga_msg_ptr_ == nullptr) {
     if(!use_simple_roswarn_) ROS_WARN("Main is not subscrubbed.");
+    skipping_publish_num_++;
     return;
   }
 
@@ -83,7 +89,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 
   double t_s = subgga_msg_ptr->header.stamp.toSec();
   double dt_ms = t_s - t_m;
-  if(std::abs(dt_ms) > time_thresshold_) {
+  if(std::abs(dt_ms) > time_thresshold_ || dt_ms < 0) {
     if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_ms %lf.", dt_ms);
     skipping_publish_num_++;
     return;
@@ -112,6 +118,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     previous_main_pos.x, previous_main_pos.y, previous_main_pos.z, lc_param_);
 
   // interpotation: x = a * t + b
+  // m:main, pm:previous main, s:sub
   auto f = [](double x_m, double x_pm, double t_m, double t_pm, double t_s){
     double a = (x_m - x_pm) / (t_m - t_pm);
     double b = x_m - a * t_m;
@@ -155,17 +162,47 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 
   // get TF sensor to base
   geometry_msgs::TransformStamped::Ptr TF_sensor_to_base_ptr(new geometry_msgs::TransformStamped);
-  getTransform(sensor_frame, base_frame_, TF_sensor_to_base_ptr);
+  getTransform(sensor_frame, base_frame_,TF_sensor_to_base_ptr);
 
   // transform pose_frame to map_frame
   geometry_msgs::PoseStamped::Ptr transformed_pose_msg_ptr(
     new geometry_msgs::PoseStamped);
-  tf2::doTransform(pose_msg, *transformed_pose_msg_ptr, *TF_sensor_to_base_ptr);
 
-  publishTF("map", "main_gnss_base_link", *transformed_pose_msg_ptr);
+  transformed_pose_msg_ptr->header = pose_msg.header;
+  transformed_pose_msg_ptr->header.frame_id = map_frame_;
+
+  geometry_msgs::TransformStamped TF_map_to_pose;
+  TF_map_to_pose.transform.translation.x = pose_msg.pose.position.x;
+  TF_map_to_pose.transform.translation.y = pose_msg.pose.position.y;
+  TF_map_to_pose.transform.translation.z = pose_msg.pose.position.z;
+  TF_map_to_pose.transform.rotation.x = pose_msg.pose.orientation.x;
+  TF_map_to_pose.transform.rotation.y = pose_msg.pose.orientation.y;
+  TF_map_to_pose.transform.rotation.z = pose_msg.pose.orientation.z;
+  TF_map_to_pose.transform.rotation.w = pose_msg.pose.orientation.w;
+
+  TF_sensor_to_base_ptr->transform;
+  TF_map_to_pose.transform;
+  tf2::Transform TF2_map_to_pose;
+  tf2::Transform TF2_sensor_to_base;
+  tf2::convert(TF_map_to_pose.transform, TF2_map_to_pose);
+  tf2::convert(TF_sensor_to_base_ptr->transform, TF2_sensor_to_base);
+  tf2::Transform TF2_map_to_base = TF2_map_to_pose * TF2_sensor_to_base;
+
+  geometry_msgs::Transform TF_sensor_to_base;
+  TF_sensor_to_base = tf2::toMsg(TF2_map_to_base);
+
+  transformed_pose_msg_ptr->pose.position.x = TF_sensor_to_base.translation.x;
+  transformed_pose_msg_ptr->pose.position.y = TF_sensor_to_base.translation.y;
+  transformed_pose_msg_ptr->pose.position.z = TF_sensor_to_base.translation.z;
+  transformed_pose_msg_ptr->pose.orientation.x = TF_sensor_to_base.rotation.x;
+  transformed_pose_msg_ptr->pose.orientation.y = TF_sensor_to_base.rotation.y;
+  transformed_pose_msg_ptr->pose.orientation.z = TF_sensor_to_base.rotation.z;
+  transformed_pose_msg_ptr->pose.orientation.w = TF_sensor_to_base.rotation.w;
+
+  publishTF(map_frame_, "gnss_compass_base_link", *transformed_pose_msg_ptr);
 
   odom_msg_.header = transformed_pose_msg_ptr->header;
-  odom_msg_.child_frame_id = "main_gnss_base_link";
+  odom_msg_.child_frame_id = "gnss_compass_base_link";
   odom_msg_.pose.pose = transformed_pose_msg_ptr->pose;
 
   double baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
@@ -173,7 +210,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     baseline_length <= beseline_length_ + allowable_beseline_length_error_);
   if(!is_beseline_ok)
   {
-    ROS_WARN("mayby mis-FIX:l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+    ROS_WARN("mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
     illigal_odom_pub_.publish(odom_msg_);
     return;
   }
@@ -286,6 +323,7 @@ void GnssCompass::timerDiagnostic()
       std::stoi(key_value_stdmap_["skipping_publish_num"]) >= max_skipping_publish_num_) {
       diag_status_msg.level = diagnostic_msgs::DiagnosticStatus::ERROR;
       diag_status_msg.message += "skipping_publish_num exceed limit. ";
+      ROS_WARN("Emergency! skipping_publish_num: %d", skipping_publish_num_);
     }
 
     diagnostic_msgs::DiagnosticArray diag_msg;
