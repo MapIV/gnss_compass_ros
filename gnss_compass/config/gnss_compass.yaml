@@ -1,4 +1,4 @@
-# Vehicle reference frame
+# Map frame
 map_frame: "map"
 # Vehicle reference frame
 base_frame: "base_link"
