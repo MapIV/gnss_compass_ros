@@ -1,10 +1,17 @@
 # Vehicle reference frame
+map_frame: "map"
+# Vehicle reference frame
 base_frame: "base_link"
+# Whether the position coordinates should be in mgrs or in the plane rectangular coordinate system
+use_mgrs: true
+# plane rectangular number
+plane_num: 7
 # Whether sensor_frame name is specified in yaml or not
 use_change_of_sensor_frame: true
 # If use_change_of_sensor_frame is true, the following is used for sensor_frame to base_link tf conversion.
 sensor_frame: "gnss_link"
 # Main gnss antenna data acquisition cycle
+# If the time difference between main and sub is 1/gnss_frequency[sec], no calculation is performed.
 gnss_frequency : 50.0
 # Upper and lower limits of staratus using GNSS
 min_gnss_status : 4

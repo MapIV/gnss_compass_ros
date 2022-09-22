@@ -5,7 +5,10 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   private_nh_(private_nh),
   tf2_listener_(tf2_buffer_)
 {
+  private_nh_.getParam("map_frame", map_frame_);
   private_nh_.getParam("base_frame", base_frame_);
+  private_nh_.getParam("use_mgrs", use_mgrs_);
+  private_nh_.getParam("plane_num", plane_num_);
   private_nh_.getParam("use_change_of_sensor_frame", use_change_of_sensor_frame_);
   private_nh_.getParam("sensor_frame", sensor_frame_);
   private_nh_.getParam("gnss_frequency", gnss_frequency_);
@@ -40,9 +43,9 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   diagnostic_thread_.detach();
 
   // LLHConverter setting
-  lc_param_.use_mgrs = false;
-  lc_param_.plane_num = 7;
-  lc_param_.height_convert_type = llh_converter::ConvertType::ORTHO2ELLIPS;
+  lc_param_.use_mgrs = use_mgrs_;
+  lc_param_.plane_num = plane_num_;
+  lc_param_.height_convert_type = llh_converter::ConvertType::NONE;
   lc_param_.geoid_type = llh_converter::GeoidType::EGM2008;
 
   skipping_publish_num_ = 0;
@@ -165,9 +168,8 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   geometry_msgs::PoseStamped::Ptr transformed_pose_msg_ptr(
     new geometry_msgs::PoseStamped);
 
-  std::string map_frame = "map";
   transformed_pose_msg_ptr->header = pose_msg.header;
-  transformed_pose_msg_ptr->header.frame_id = map_frame;
+  transformed_pose_msg_ptr->header.frame_id = map_frame_;
 
   geometry_msgs::TransformStamped TF_map_to_pose;
   TF_map_to_pose.transform.translation.x = pose_msg.pose.position.x;
@@ -197,7 +199,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   transformed_pose_msg_ptr->pose.orientation.z = TF_sensor_to_base.rotation.z;
   transformed_pose_msg_ptr->pose.orientation.w = TF_sensor_to_base.rotation.w;
 
-  publishTF(map_frame, "gnss_compass_base_link", *transformed_pose_msg_ptr);
+  publishTF(map_frame_, "gnss_compass_base_link", *transformed_pose_msg_ptr);
 
   odom_msg_.header = transformed_pose_msg_ptr->header;
   odom_msg_.child_frame_id = "gnss_compass_base_link";

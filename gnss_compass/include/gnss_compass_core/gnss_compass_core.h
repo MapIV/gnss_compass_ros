@@ -53,8 +53,9 @@ private:
 
   std::thread diagnostic_thread_;
 
-  std::string base_frame_;
-  bool use_change_of_sensor_frame_;
+  std::string map_frame_, base_frame_;
+  bool use_mgrs_, use_change_of_sensor_frame_;
+  int plane_num_;
   std::string sensor_frame_;
   std::map<std::string, std::string> key_value_stdmap_;
 
