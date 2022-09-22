@@ -10,6 +10,13 @@ In the standard configuration, pose is only published when two antennas are in R
 roslaunch gnss_compass gnss_compass.launch
 ```
 
+## build
+
+```
+cd ~/catkin_ws/src
+git clone --recursive https://github.com/MapIV/gnss_compass_ros.git
+```
+
 ## pubsub
 
 - input  
