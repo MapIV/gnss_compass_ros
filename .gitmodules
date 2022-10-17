@@ -1,6 +1,6 @@
 [submodule "util/llh_converter"]
 	path = util/llh_converter
-	url = git@github.com:MapIV/llh_converter.git
+	url = https://github.com/MapIV/llh_converter.git
 [submodule "util/nmea_converter"]
 	path = util/nmea_converter
-	url = git@github.com:MapIV/nmea_converter.git
+	url = https://github.com/MapIV/nmea_converter.git
