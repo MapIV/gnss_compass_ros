@@ -35,6 +35,7 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   subgga_sub_ = nh_.subscribe("sub_gnss_gga", 100, &GnssCompass::callbackSubGga, this);
 
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("gnss_compass_pose", 10);
+  pose_with_covariance_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("gnss_compass_pose_with_covariance", 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("gnss_compass_odom", 10);
   illigal_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("illigal_gnss_compass_odom", 10);
   diagnostics_pub_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
@@ -220,6 +221,23 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   
   pose_pub_.publish(transformed_pose_msg_ptr);
   odom_pub_.publish(odom_msg_);
+
+  geometry_msgs::PoseWithCovarianceStamped transformed_pose_with_covariance_msg;
+  transformed_pose_with_covariance_msg.header = transformed_pose_msg_ptr->header;
+  transformed_pose_with_covariance_msg.pose.pose = transformed_pose_msg_ptr->pose;
+
+  double std_dev_xyz = 0.03; // [m]
+  double std_dev_rp = 100; // [rad]
+  double std_dev_yaw = 0.2 / 180 * M_PI; // [rad]
+  transformed_pose_with_covariance_msg.pose.covariance[0] = std_dev_xyz * std_dev_xyz;
+  transformed_pose_with_covariance_msg.pose.covariance[7] = std_dev_xyz * std_dev_xyz;
+  transformed_pose_with_covariance_msg.pose.covariance[14] = std_dev_xyz * std_dev_xyz;
+  transformed_pose_with_covariance_msg.pose.covariance[21] = std_dev_rp * std_dev_rp;
+  transformed_pose_with_covariance_msg.pose.covariance[28] = std_dev_rp * std_dev_rp;
+  transformed_pose_with_covariance_msg.pose.covariance[35] = std_dev_yaw * std_dev_yaw;
+
+
+  pose_with_covariance_pub_.publish(transformed_pose_with_covariance_msg);
 
 }
 

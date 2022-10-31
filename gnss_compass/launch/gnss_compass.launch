@@ -6,12 +6,14 @@
 
   <arg name="input_main_gnss_topic" default="/main/mosaic/gga" doc="Main gnss topic"/>
   <arg name="input_sub_gnss_topic" default="/sub/mosaic/gga" doc="Sub gnss topic"/>
-  <arg name="output_pose_topic" default="gnss_pose" doc="Estimated self position" />
+  <arg name="output_pose_topic" default="gnss_compass_pose" doc="Estimated self position" />
+  <arg name="output_pose_with_covariance_topic" default="gnss_compass_pose_with_covariance" doc="Estimated self position" />
 
   <node pkg="gnss_compass" name="gnss_compass" type="gnss_compass">
     <remap from="main_gnss_gga" to="$(arg input_main_gnss_topic)" />
     <remap from="sub_gnss_gga" to="$(arg input_sub_gnss_topic)" />
     <remap from="gnss_compass_pose" to="$(arg output_pose_topic)" />
+     <remap from="gnss_compass_pose_with_covariance" to="$(arg output_pose_with_covariance_topic)" />
     <rosparam command="load" file="$(arg param_file)" />
   </node>
 
