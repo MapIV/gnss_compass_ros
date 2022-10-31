@@ -7,6 +7,7 @@
 
 #include <nmea_msgs/Gpgga.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/convert.h>
@@ -36,6 +37,7 @@ private:
   ros::Subscriber subgga_sub_;
 
   ros::Publisher pose_pub_;
+  ros::Publisher pose_with_covariance_pub_;
   ros::Publisher odom_pub_;
   ros::Publisher illigal_odom_pub_;
   ros::Publisher diagnostics_pub_;
