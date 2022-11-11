@@ -33,3 +33,7 @@ catkin_make -DCMAKE_BUILD_TYPE=Release
 /illigal_gnss_compass_odom  (nav_msgs/Odometry)  
 /diagnostics  ([diagnostic_msgs/DiagnosticArray)  
 /tf(from "map" to "base_link")  
+
+## Notes on use
+
+Be sure to set gnss_frequency, yaw_bias, and baseline_length in gnss_compass.yaml when using it.  
