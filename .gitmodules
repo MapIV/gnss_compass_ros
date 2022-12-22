@@ -1,6 +1,9 @@
 [submodule "util/llh_converter"]
 	path = util/llh_converter
 	url = git@github.com:MapIV/llh_converter.git
+	branch = ros2
 [submodule "util/nmea_converter"]
 	path = util/nmea_converter
 	url = git@github.com:MapIV/nmea_converter.git
+	branch = ros2
+
