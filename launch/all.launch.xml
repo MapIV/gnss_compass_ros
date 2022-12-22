@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+  <arg name="input_main_gnss_topic" default="/main/mosaic/gga" description="Main gnss topic"/>
+  <arg name="input_sub_gnss_topic" default="/sub/mosaic/gga" description="Sub gnss topic"/>
+  <arg name="output_pose_topic" default="gnss_pose" description="Estimated self position" />
+
+  <!-- <node pkg="rviz2" exec="rviz2" name="rviz2" args="-d $(find-pkg-share gnss_compass)/rviz/rviz.rviz"/> -->
+
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="static_transform_publisher" args="75723.6287 92442.1873 55.5 0 0 0 map base_link"/>
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="static_transform_publisher" args="0 0 0 0 0 0 base_link gnss_link"/>
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="static_transform_publisher" args="0 0 0 0 0 0 gnss_link gnss_compass_base_link"/>
+  <include file="$(dirname)/nmea2fix.launch.xml"/>
+  <include file="$(find-pkg-share gnss_compass)/launch/gnss_compass.launch.xml">
+      <!-- <param name="/use_sim_time" value="true" /> -->
+      <arg name="input_main_gnss_topic" value="$(var input_main_gnss_topic)"/>
+      <arg name="input_sub_gnss_topic" value="$(var input_sub_gnss_topic)"/>
+      <arg name="output_pose_topic" value="$(var output_pose_topic)" />
+  </include>
+
+</launch>
