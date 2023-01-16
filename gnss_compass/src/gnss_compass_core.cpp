@@ -1,21 +1,6 @@
 #include <gnss_compass_core/gnss_compass_core.hpp>
 
-GnssCompass::GnssCompass():Node("gnss_compass"), 
-  map_frame_(declare_parameter<std::string>("map_frame")),
-  base_frame_(declare_parameter<std::string>("base_frame")),
-  use_mgrs_(declare_parameter<bool>("use_mgrs")),
-  plane_num_(declare_parameter<int>("plane_num")),
-  use_change_of_sensor_frame_(declare_parameter<bool>("use_change_of_sensor_frame")),
-  sensor_frame_(declare_parameter<std::string>("sensor_frame")),
-  gnss_frequency_(declare_parameter<double>("gnss_frequency")),
-  min_gnss_status_(declare_parameter<int>("min_gnss_status")),
-  max_gnss_status_(declare_parameter<int>("max_gnss_status")),
-  time_thresshold_(declare_parameter<double>("time_threshold")),
-  yaw_bias_(declare_parameter<double>("yaw_bias")),
-  use_simple_roswarn_(declare_parameter<bool>("use_simple_roswarn")),
-  beseline_length_(declare_parameter<double>("baseline_length")),
-  allowable_beseline_length_error_(declare_parameter<double>("allowable_baseline_length_error")),
-  max_skipping_publish_num_(declare_parameter<int>("max_skipping_publish_num"))
+GnssCompass::GnssCompass():Node("gnss_compass")
 {
   // private_nh_.getParam("map_frame", map_frame_);
   // private_nh_.getParam("base_frame", base_frame_);
@@ -32,6 +17,25 @@ GnssCompass::GnssCompass():Node("gnss_compass"),
   // private_nh_.getParam("beseline_length", beseline_length_);
   // private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
   // private_nh_.getParam("max_skipping_publish_num", max_skipping_publish_num_);
+
+  auto node = rclcpp::Node::make_shared("gnss_compass");
+
+
+  node->declare_parameter("map_frame",map_frame_);
+  node->declare_parameter("base_frame",base_frame_);
+  node->declare_parameter("use_mgrs",use_mgrs_);
+  node->declare_parameter("plane_num",plane_num_);
+  node->declare_parameter("use_change_of_sensor_frame",use_change_of_sensor_frame_);
+  node->declare_parameter("sensor_frame",sensor_frame_);
+  node->declare_parameter("gnss_frequency",gnss_frequency_);
+  node->declare_parameter("min_gnss_status",min_gnss_status_);
+  node->declare_parameter("max_gnss_status",max_gnss_status_);
+  node->declare_parameter("time_threshold",time_thresshold_);
+  node->declare_parameter("yaw_bias",yaw_bias_);
+  node->declare_parameter("use_simple_roswarn",use_simple_roswarn_);
+  node->declare_parameter("baseline_length",beseline_length_);
+  node->declare_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
+  node->declare_parameter("max_skipping_publish_num",max_skipping_publish_num_);
 
   tf2_buffer_ =
       std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -293,7 +297,7 @@ bool GnssCompass::getTransform(
 
   try {
     *transform_stamped_ptr =
-      tf2_buffer_->lookupTransform(target_frame, source_frame, rclcpp::Time(0), rclcpp::Duration(1.0));
+      tf2_buffer_->lookupTransform(target_frame, source_frame, rclcpp::Time(0), rclcpp::Duration::from_seconds(1.0));
   } catch (tf2::TransformException & ex) {
     RCLCPP_WARN(get_logger(),"%s", ex.what());
     RCLCPP_ERROR(get_logger(),"Please publish TF %s to %s", target_frame.c_str(), source_frame.c_str());
