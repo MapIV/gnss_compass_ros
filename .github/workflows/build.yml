@@ -1,0 +1,79 @@
+name: build
+on: pull_request
+
+jobs:
+  humble_build:
+    runs-on:  ubuntu-22.04
+
+    container: ros:humble
+    services:
+      ros:
+        image: ros
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: rosdep update
+        run: |
+          apt-get update
+          rosdep update
+      - name: Create Workspace
+        run: |
+          mkdir -p ~/ros2_ws/src/
+          cp -r `pwd` ~/ros2_ws/src/
+
+      - name: Install GeographicLib
+        run: |
+          apt-get install -y libgeographic-dev geographiclib-tools geographiclib-doc
+
+      - name: Build
+        run: |
+          cd ~/ros2_ws/
+          source /opt/ros/humble/setup.bash
+          rosdep install --from-paths src --ignore-src -r -y
+          colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --catkin-skip-building-tests
+  foxy_build:
+    runs-on:  ubuntu-20.04
+    
+    container: ros:foxy
+    services:
+      ros:
+        image: ros
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: rosdep update
+        run: |
+          apt-get update
+          rosdep update
+      - name: Create Workspace
+        run: |
+          mkdir -p ~/ros2_ws/src/
+          cp -r `pwd` ~/ros2_ws/src/
+
+
+      - name: Install GeographicLib
+        run: |
+          apt-get install -y libgeographic-dev geographiclib-tools geographiclib-doc
+
+      - name: Build
+        run: |
+          cd ~/ros2_ws/
+          source /opt/ros/foxy/setup.bash
+          rosdep install --from-paths src --ignore-src -r -y
+          colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --catkin-skip-building-tests

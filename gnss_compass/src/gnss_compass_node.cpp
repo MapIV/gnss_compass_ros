@@ -1,15 +1,10 @@
-#include <ros/ros.h>
-
-#include "gnss_compass_core/gnss_compass_core.h"
+#include <gnss_compass_core/gnss_compass_core.hpp>
 
 int main(int argc, char ** argv)
 {
-  ros::init(argc, argv, "gnss_compass");
-  ros::NodeHandle nh;
-  ros::NodeHandle private_nh("~");
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<GnssCompass>());
+  rclcpp::shutdown();
 
-  GnssCompass node(nh, private_nh);
-
-  ros::spin();
   return 0;
 }

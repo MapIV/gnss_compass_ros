@@ -1,43 +1,66 @@
-#include "gnss_compass_core/gnss_compass_core.h"
+#include <gnss_compass_core/gnss_compass_core.hpp>
 
-GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
-: nh_(nh),
-  private_nh_(private_nh),
-  tf2_listener_(tf2_buffer_)
+GnssCompass::GnssCompass():Node("gnss_compass")
 {
-  private_nh_.getParam("map_frame", map_frame_);
-  private_nh_.getParam("base_frame", base_frame_);
-  private_nh_.getParam("use_mgrs", use_mgrs_);
-  private_nh_.getParam("plane_num", plane_num_);
-  private_nh_.getParam("use_change_of_sensor_frame", use_change_of_sensor_frame_);
-  private_nh_.getParam("sensor_frame", sensor_frame_);
-  private_nh_.getParam("gnss_frequency", gnss_frequency_);
-  private_nh_.getParam("min_gnss_status", min_gnss_status_);
-  private_nh_.getParam("max_gnss_status", max_gnss_status_);
-  private_nh_.getParam("time_thresshold", time_thresshold_);
-  private_nh_.getParam("yaw_bias", yaw_bias_);
-  private_nh_.getParam("use_simple_roswarn", use_simple_roswarn_);
-  private_nh_.getParam("beseline_length", beseline_length_);
-  private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
-  private_nh_.getParam("max_skipping_publish_num", max_skipping_publish_num_);
+  // private_nh_.getParam("map_frame", map_frame_);
+  // private_nh_.getParam("base_frame", base_frame_);
+  // private_nh_.getParam("use_mgrs", use_mgrs_);
+  // private_nh_.getParam("plane_num", plane_num_);
+  // private_nh_.getParam("use_change_of_sensor_frame", use_change_of_sensor_frame_);
+  // private_nh_.getParam("sensor_frame", sensor_frame_);
+  // private_nh_.getParam("gnss_frequency", gnss_frequency_);
+  // private_nh_.getParam("min_gnss_status", min_gnss_status_);
+  // private_nh_.getParam("max_gnss_status", max_gnss_status_);
+  // private_nh_.getParam("time_thresshold", time_thresshold_);
+  // private_nh_.getParam("yaw_bias", yaw_bias_);
+  // private_nh_.getParam("use_simple_roswarn", use_simple_roswarn_);
+  // private_nh_.getParam("beseline_length", beseline_length_);
+  // private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
+  // private_nh_.getParam("max_skipping_publish_num", max_skipping_publish_num_);
 
-  ROS_INFO("base_frame_id: %s", base_frame_.c_str());
+  auto node = rclcpp::Node::make_shared("gnss_compass");
+
+
+  node->declare_parameter("map_frame",map_frame_);
+  node->declare_parameter("base_frame",base_frame_);
+  node->declare_parameter("use_mgrs",use_mgrs_);
+  node->declare_parameter("plane_num",plane_num_);
+  node->declare_parameter("use_change_of_sensor_frame",use_change_of_sensor_frame_);
+  node->declare_parameter("sensor_frame",sensor_frame_);
+  node->declare_parameter("gnss_frequency",gnss_frequency_);
+  node->declare_parameter("min_gnss_status",min_gnss_status_);
+  node->declare_parameter("max_gnss_status",max_gnss_status_);
+  node->declare_parameter("time_threshold",time_thresshold_);
+  node->declare_parameter("yaw_bias",yaw_bias_);
+  node->declare_parameter("use_simple_roswarn",use_simple_roswarn_);
+  node->declare_parameter("baseline_length",beseline_length_);
+  node->declare_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
+  node->declare_parameter("max_skipping_publish_num",max_skipping_publish_num_);
+
+  tf2_buffer_ =
+      std::make_unique<tf2_ros::Buffer>(this->get_clock());
+  tf2_listener_ =
+      std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
+  tf2_broadcaster_ =
+      std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+
+  RCLCPP_INFO(get_logger(),"base_frame_id: %s", base_frame_.c_str());
   if(use_change_of_sensor_frame_)
   {
-    ROS_INFO("sensor_frame_id: %s", sensor_frame_.c_str());
+    RCLCPP_INFO(get_logger(),"sensor_frame_id: %s", sensor_frame_.c_str());
   }
-  ROS_INFO("min_gnss_status: %d, max_gnss_status: %d, time_thresshold: %lf, yaw_bias: %lf", min_gnss_status_,
+  RCLCPP_INFO(get_logger(),"min_gnss_status: %d, max_gnss_status: %d, time_thresshold: %lf, yaw_bias: %lf", min_gnss_status_,
     max_gnss_status_, time_thresshold_, yaw_bias_);
-  ROS_INFO("use_simple_roswarn: %d, beseline_length: %lf, allowable_beseline_length_error: %lf, max_skipping_publish_num: %d", use_simple_roswarn_,
+  RCLCPP_INFO(get_logger(),"use_simple_roswarn: %d, beseline_length: %lf, allowable_beseline_length_error: %lf, max_skipping_publish_num: %d", use_simple_roswarn_,
     beseline_length_, allowable_beseline_length_error_, max_skipping_publish_num_);
 
-  maingga_sub_ = nh_.subscribe("main_gnss_gga", 100, &GnssCompass::callbackMainGga, this);
-  subgga_sub_ = nh_.subscribe("sub_gnss_gga", 100, &GnssCompass::callbackSubGga, this);
+  maingga_sub_ = this->create_subscription<nmea_msgs::msg::Gpgga>("main_gnss_gga", 100, std::bind(&GnssCompass::callbackMainGga, this,std::placeholders::_1));
+  subgga_sub_ = this->create_subscription<nmea_msgs::msg::Gpgga>("sub_gnss_gga", 100, std::bind(&GnssCompass::callbackSubGga, this,std::placeholders::_1));
 
-  pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("gnss_compass_pose", 10);
-  odom_pub_ = nh_.advertise<nav_msgs::Odometry>("gnss_compass_odom", 10);
-  illigal_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("illigal_gnss_compass_odom", 10);
-  diagnostics_pub_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
+  pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("gnss_compass_pose", 10);
+  odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("gnss_compass_odom", 10);
+  illigal_odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("illigal_gnss_compass_odom", 10);
+  diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 10);
 
   diagnostic_thread_ = std::thread(&GnssCompass::timerDiagnostic, this);
   diagnostic_thread_.detach();
@@ -53,13 +76,19 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
 
 GnssCompass::~GnssCompass() {}
 
-void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg_ptr)
+
+double GnssCompass::toSec(const std_msgs::msg::Header &msg){
+  return msg.stamp.sec + msg.stamp.nanosec/1e9;
+}
+
+
+void GnssCompass::callbackMainGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  maingga_msg_ptr)
 {
   int gps_qual = maingga_msg_ptr->gps_qual;
   bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
   if(!is_gnss_status_ok)
   {
-    if(!use_simple_roswarn_) ROS_WARN("Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
     return;
   }
   if(maingga_msg_ptr != nullptr)
@@ -70,27 +99,26 @@ void GnssCompass::callbackMainGga(const nmea_msgs::Gpgga::ConstPtr & maingga_msg
 
 }
 
-void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_ptr)
+void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  subgga_msg_ptr)
 {
   if (maingga_msg_ptr_ == nullptr || previous_maingga_msg_ptr_ == nullptr) {
-    if(!use_simple_roswarn_) ROS_WARN("Main is not subscrubbed.");
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Main is not subscrubbed.");
     skipping_publish_num_++;
     return;
   }
-
-  double t_pm = previous_maingga_msg_ptr_->header.stamp.toSec();
-  double t_m = maingga_msg_ptr_->header.stamp.toSec();
+  double t_pm = toSec(previous_maingga_msg_ptr_->header);
+  double t_m = toSec(maingga_msg_ptr_->header);
   double dt_mm = t_pm - t_m;
   if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) { // Up to 150% allowed
-    if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_mm %lf.", dt_mm);
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_mm %lf.", dt_mm);
     skipping_publish_num_++;
     return;
   }
 
-  double t_s = subgga_msg_ptr->header.stamp.toSec();
+  double t_s = toSec(subgga_msg_ptr->header);
   double dt_ms = t_s - t_m;
   if(std::abs(dt_ms) > time_thresshold_ || dt_ms < 0) {
-    if(!use_simple_roswarn_) ROS_WARN("The difference between timestamps is large:dt_ms %lf.", dt_ms);
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_ms %lf.", dt_ms);
     skipping_publish_num_++;
     return;
   }
@@ -99,7 +127,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
   if(!is_gnss_status_ok)
   {
-    if(!use_simple_roswarn_) ROS_WARN("Sub is not fixed %d", subgga_msg_ptr->gps_qual);
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Sub is not fixed %d", subgga_msg_ptr->gps_qual);
     skipping_publish_num_++;
     return;
   }
@@ -140,9 +168,9 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
 
   tf2::Quaternion localization_quat;
   localization_quat.setRPY(0, 0, theta);
-  geometry_msgs::Quaternion quat = tf2::toMsg(localization_quat);
+  geometry_msgs::msg::Quaternion quat = tf2::toMsg(localization_quat);
 
-  geometry_msgs::PoseStamped pose_msg;
+  geometry_msgs::msg::PoseStamped pose_msg;
   pose_msg.header = maingga_msg_ptr_->header;
   pose_msg.header.frame_id = "map";
   pose_msg.pose.position.x = main_pos.x;
@@ -161,17 +189,19 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   }
 
   // get TF sensor to base
-  geometry_msgs::TransformStamped::Ptr TF_sensor_to_base_ptr(new geometry_msgs::TransformStamped);
+  geometry_msgs::msg::TransformStamped::SharedPtr TF_sensor_to_base_ptr(new geometry_msgs::msg::TransformStamped);
+
   getTransform(sensor_frame, base_frame_,TF_sensor_to_base_ptr);
 
   // transform pose_frame to map_frame
-  geometry_msgs::PoseStamped::Ptr transformed_pose_msg_ptr(
-    new geometry_msgs::PoseStamped);
+  geometry_msgs::msg::PoseStamped::SharedPtr transformed_pose_msg_ptr(
+    new geometry_msgs::msg::PoseStamped);
 
-  transformed_pose_msg_ptr->header = pose_msg.header;
+  transformed_pose_msg_ptr->header.frame_id = pose_msg.header.frame_id;
+  transformed_pose_msg_ptr->header.stamp = pose_msg.header.stamp;
   transformed_pose_msg_ptr->header.frame_id = map_frame_;
 
-  geometry_msgs::TransformStamped TF_map_to_pose;
+  geometry_msgs::msg::TransformStamped TF_map_to_pose;
   TF_map_to_pose.transform.translation.x = pose_msg.pose.position.x;
   TF_map_to_pose.transform.translation.y = pose_msg.pose.position.y;
   TF_map_to_pose.transform.translation.z = pose_msg.pose.position.z;
@@ -188,8 +218,10 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   tf2::convert(TF_sensor_to_base_ptr->transform, TF2_sensor_to_base);
   tf2::Transform TF2_map_to_base = TF2_map_to_pose * TF2_sensor_to_base;
 
-  geometry_msgs::Transform TF_sensor_to_base;
+  geometry_msgs::msg::Transform TF_sensor_to_base;
   TF_sensor_to_base = tf2::toMsg(TF2_map_to_base);
+
+  RCLCPP_WARN(get_logger(),"check: x=%f, y=%f, z=%f", TF_sensor_to_base.translation.x,TF_sensor_to_base.translation.y,TF_sensor_to_base.translation.z);
 
   transformed_pose_msg_ptr->pose.position.x = TF_sensor_to_base.translation.x;
   transformed_pose_msg_ptr->pose.position.y = TF_sensor_to_base.translation.y;
@@ -198,6 +230,8 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   transformed_pose_msg_ptr->pose.orientation.y = TF_sensor_to_base.rotation.y;
   transformed_pose_msg_ptr->pose.orientation.z = TF_sensor_to_base.rotation.z;
   transformed_pose_msg_ptr->pose.orientation.w = TF_sensor_to_base.rotation.w;
+
+  RCLCPP_WARN(get_logger(),"check: x=%f, y=%f, z=%f", transformed_pose_msg_ptr->pose.position.x,transformed_pose_msg_ptr->pose.position.y,transformed_pose_msg_ptr->pose.position.z);
 
   publishTF(map_frame_, "gnss_compass_base_link", *transformed_pose_msg_ptr);
 
@@ -210,23 +244,21 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
     baseline_length <= beseline_length_ + allowable_beseline_length_error_);
   if(!is_beseline_ok)
   {
-    ROS_WARN("mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
-    illigal_odom_pub_.publish(odom_msg_);
+    RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+    illigal_odom_pub_->publish(odom_msg_);
     return;
   }
-  else {
-    ROS_INFO("normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
-  }
-  
-  pose_pub_.publish(transformed_pose_msg_ptr);
-  odom_pub_.publish(odom_msg_);
+  RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+
+  pose_pub_->publish(*transformed_pose_msg_ptr);
+  odom_pub_->publish(odom_msg_);
 
 }
 
 void GnssCompass::publishTF(const std::string & frame_id, const std::string & child_frame_id,
-  const geometry_msgs::PoseStamped & pose_msg)
+  const geometry_msgs::msg::PoseStamped & pose_msg)
 {
-  geometry_msgs::TransformStamped transform_stamped;
+  geometry_msgs::msg::TransformStamped transform_stamped;
   transform_stamped.header.frame_id = frame_id;
   transform_stamped.child_frame_id = child_frame_id;
   transform_stamped.header.stamp = pose_msg.header.stamp;
@@ -241,16 +273,16 @@ void GnssCompass::publishTF(const std::string & frame_id, const std::string & ch
   transform_stamped.transform.rotation.y = tf_quaternion.y();
   transform_stamped.transform.rotation.z = tf_quaternion.z();
   transform_stamped.transform.rotation.w = tf_quaternion.w();
-
-  tf2_broadcaster_.sendTransform(transform_stamped);
+  tf2_broadcaster_->sendTransform(transform_stamped);
 }
 
 bool GnssCompass::getTransform(
   const std::string & target_frame, const std::string & source_frame,
-  const geometry_msgs::TransformStamped::Ptr & transform_stamped_ptr)
+  const geometry_msgs::msg::TransformStamped::SharedPtr & transform_stamped_ptr)
 {
+
   if (target_frame == source_frame) {
-    transform_stamped_ptr->header.stamp = ros::Time::now();
+    transform_stamped_ptr->header.stamp = this->get_clock()->now();
     transform_stamped_ptr->header.frame_id = target_frame;
     transform_stamped_ptr->child_frame_id = source_frame;
     transform_stamped_ptr->transform.translation.x = 0.0;
@@ -265,12 +297,12 @@ bool GnssCompass::getTransform(
 
   try {
     *transform_stamped_ptr =
-      tf2_buffer_.lookupTransform(target_frame, source_frame, ros::Time(0), ros::Duration(1.0));
+      tf2_buffer_->lookupTransform(target_frame, source_frame, rclcpp::Time(0), rclcpp::Duration::from_seconds(1.0));
   } catch (tf2::TransformException & ex) {
-    ROS_WARN("%s", ex.what());
-    ROS_ERROR("Please publish TF %s to %s", target_frame.c_str(), source_frame.c_str());
+    RCLCPP_WARN(get_logger(),"%s", ex.what());
+    RCLCPP_ERROR(get_logger(),"Please publish TF %s to %s", target_frame.c_str(), source_frame.c_str());
 
-    transform_stamped_ptr->header.stamp = ros::Time::now();
+    transform_stamped_ptr->header.stamp = this->get_clock()->now();
     transform_stamped_ptr->header.frame_id = target_frame;
     transform_stamped_ptr->child_frame_id = source_frame;
     transform_stamped_ptr->transform.translation.x = 0.0;
@@ -285,7 +317,7 @@ bool GnssCompass::getTransform(
   return true;
 }
 
-void GnssCompass::ggall2fixll(const nmea_msgs::Gpgga::ConstPtr & gga_msg_ptr, double & navsat_lat, double & navsat_lon)
+void GnssCompass::ggall2fixll(const nmea_msgs::msg::Gpgga::ConstSharedPtr & gga_msg_ptr, double & navsat_lat, double & navsat_lon)
 {
   if (gga_msg_ptr->lat_dir == "N") {
     navsat_lat = gga_msg_ptr->lat;
@@ -301,36 +333,36 @@ void GnssCompass::ggall2fixll(const nmea_msgs::Gpgga::ConstPtr & gga_msg_ptr, do
 
 void GnssCompass::timerDiagnostic()
 {
-  ros::Rate rate(100);
-  while (ros::ok()) {
+  rclcpp::Rate rate(100);
+  while (rclcpp::ok()) {
     key_value_stdmap_["skipping_publish_num"] = std::to_string(skipping_publish_num_);
 
-    diagnostic_msgs::DiagnosticStatus diag_status_msg;
+    diagnostic_msgs::msg::DiagnosticStatus diag_status_msg;
     diag_status_msg.name = "gnss_compass";
     diag_status_msg.hardware_id = "";
 
     for (const auto & key_value : key_value_stdmap_) {
-      diagnostic_msgs::KeyValue key_value_msg;
+      diagnostic_msgs::msg::KeyValue key_value_msg;
       key_value_msg.key = key_value.first;
       key_value_msg.value = key_value.second;
       diag_status_msg.values.push_back(key_value_msg);
     }
 
-    diag_status_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
+    diag_status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
     diag_status_msg.message = "";
     if (
       key_value_stdmap_.count("skipping_publish_num") &&
       std::stoi(key_value_stdmap_["skipping_publish_num"]) >= max_skipping_publish_num_) {
-      diag_status_msg.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+      diag_status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
       diag_status_msg.message += "skipping_publish_num exceed limit. ";
-      ROS_WARN("Emergency! skipping_publish_num: %d", skipping_publish_num_);
+      RCLCPP_WARN(get_logger(),"Emergency! skipping_publish_num: %d", skipping_publish_num_);
     }
 
-    diagnostic_msgs::DiagnosticArray diag_msg;
-    diag_msg.header.stamp = ros::Time::now();
+    diagnostic_msgs::msg::DiagnosticArray diag_msg;
+    diag_msg.header.stamp = this->get_clock()->now();
     diag_msg.status.push_back(diag_status_msg);
 
-    diagnostics_pub_.publish(diag_msg);
+    diagnostics_pub_->publish(diag_msg);
 
     rate.sleep();
   }

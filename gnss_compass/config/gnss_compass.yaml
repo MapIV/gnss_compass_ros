@@ -1,31 +1,34 @@
-# Map frame
-map_frame: "map"
-# Vehicle reference frame
-base_frame: "base_link"
-# Whether the position coordinates should be in mgrs or in the plane rectangular coordinate system
-use_mgrs: true
-# plane rectangular number
-plane_num: 7
-# Whether sensor_frame name is specified in yaml or not
-use_change_of_sensor_frame: true
-# If use_change_of_sensor_frame is true, the following is used for sensor_frame to base_link tf conversion.
-sensor_frame: "gnss_link"
-# Main gnss antenna data acquisition cycle
-# If the time difference between main and sub is 1/gnss_frequency[sec], no calculation is performed.
-gnss_frequency : 50.0
-# Upper and lower limits of staratus using GNSS
-min_gnss_status : 4
-max_gnss_status : 4
-# Tolerance for the difference between the timestamps of the two antennas [sec]
-time_thresshold : 0.03
-# Yaw bias between the direction of travel and the vector created between the antennas
-yaw_bias: 0.0
-# Minimize number of ROS_WARN
-use_simple_roswarn : true
-# Distance between antennas in three dimensions [m]
-beseline_length: 1.30
-# If the calculated baseline length has an error greater than or equal to this threshold, 
-# it is determined to be a missed FIX [m]
-allowable_beseline_length_error: 0.05
-# If the number of times that pose is not calculated consecutively exceeds this value, an error is output by diagnostics.
-max_skipping_publish_num: 10
+/**:
+  ros__parameters:
+    use_sim_time: true
+    # Map frame
+    map_frame: "map"
+    # Vehicle reference frame
+    base_frame: "base_link"
+    # Whether the position coordinates should be in mgrs or in the plane rectangular coordinate system
+    use_mgrs: true
+    # plane rectangular number
+    plane_num: 7
+    # Whether sensor_frame name is specified in yaml or not
+    use_change_of_sensor_frame: true
+    # If use_change_of_sensor_frame is true, the following is used for sensor_frame to base_link tf conversion.
+    sensor_frame: "gnss_link"
+    # Main gnss antenna data acquisition cycle
+    # If the time difference between main and sub is 1/gnss_frequency[sec], no calculation is performed.
+    gnss_frequency : 50.0
+    # Upper and lower limits of staratus using GNSS
+    min_gnss_status : 4
+    max_gnss_status : 4
+    # Tolerance for the difference between the timestamps of the two antennas [sec]
+    time_threshold : 0.03
+    # Yaw bias between the direction of travel and the vector created between the antennas
+    yaw_bias: 0.0
+    # Minimize number of ROS_WARN
+    use_simple_roswarn : true
+    # Distance between antennas in three dimensions [m]
+    baseline_length: 1.00
+    # If the calculated baseline length has an error greater than or equal to this threshold, 
+    # it is determined to be a missed FIX [m]
+    allowable_baseline_length_error: 0.20
+    # If the number of times that pose is not calculated consecutively exceeds this value, an error is output by diagnostics.
+    max_skipping_publish_num: 10
