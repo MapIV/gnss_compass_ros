@@ -28,6 +28,11 @@ jobs:
         run: |
           mkdir -p ~/ros2_ws/src/
           cp -r `pwd` ~/ros2_ws/src/
+
+      - name: Install GeographicLib
+        run: |
+          apt-get install -y libgeographic-dev geographiclib-tools geographiclib-doc
+
       - name: Build
         run: |
           cd ~/ros2_ws/
@@ -60,6 +65,12 @@ jobs:
         run: |
           mkdir -p ~/ros2_ws/src/
           cp -r `pwd` ~/ros2_ws/src/
+
+
+      - name: Install GeographicLib
+        run: |
+          apt-get install -y libgeographic-dev geographiclib-tools geographiclib-doc
+
       - name: Build
         run: |
           cd ~/ros2_ws/
