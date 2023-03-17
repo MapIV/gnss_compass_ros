@@ -3,14 +3,18 @@
 <launch>
 
   <arg name="param_file" default="$(find-pkg-share gnss_compass)/config/gnss_compass.yaml" />
-
-  <arg name="input_main_gnss_topic" default="/main/mosaic/gga" description="Main gnss topic"/>
-  <arg name="input_sub_gnss_topic" default="/sub/mosaic/gga" description="Sub gnss topic"/>
+  <!-- It is a choice whether to use gga or fix as input. -->
+  <arg name="input_main_fix_topic" default="/main/mosaic/fix" description="Main gnss fix topic"/>
+  <arg name="input_sub_fix_topic" default="/sub/mosaic/fix" description="Sub gnss fix topic"/>
+  <arg name="input_main_gga_topic" default="/main/mosaic/gga" description="Main gnss gga topic"/>
+  <arg name="input_sub_gga_topic" default="/sub/mosaic/gga" description="Sub gnss gga topic"/>
   <arg name="output_pose_topic" default="gnss_pose" description="Estimated self position" />
 
   <node pkg="gnss_compass" name="gnss_compass" exec="gnss_compass">
-    <remap from="main_gnss_gga" to="$(var input_main_gnss_topic)" />
-    <remap from="sub_gnss_gga" to="$(var input_sub_gnss_topic)" />
+    <remap from="main_gnss_fix" to="$(var input_main_fix_topic)" />
+    <remap from="sub_gnss_fix" to="$(var input_sub_fix_topic)" />
+    <remap from="main_gnss_gga" to="$(var input_main_gga_topic)" />
+    <remap from="sub_gnss_gga" to="$(var input_sub_gga_topic)" />
     <remap from="gnss_compass_pose" to="$(var output_pose_topic)" />
     <param from="$(var param_file)" />
   </node>

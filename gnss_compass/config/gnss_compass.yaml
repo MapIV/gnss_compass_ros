@@ -16,9 +16,13 @@
     # Main gnss antenna data acquisition cycle
     # If the time difference between main and sub is 1/gnss_frequency[sec], no calculation is performed.
     gnss_frequency : 50.0
-    # Upper and lower limits of staratus using GNSS
+    # 0 : nmea_msgs/Gpgga  1 : sensor_msgs
+    input_gnss_type : 0
+    # Upper and lower limits of staratus using GNSS if input_gnss_type is 0
     min_gnss_status : 4
     max_gnss_status : 4
+    # Minimum covariance of the pose topics to be published [m] if input_gnss_type is 1
+    fix_std_pos_thres : 0.1
     # Tolerance for the difference between the timestamps of the two antennas [sec]
     time_threshold : 0.03
     # Yaw bias between the direction of travel and the vector created between the antennas
