@@ -2,24 +2,8 @@
 
 GnssCompass::GnssCompass():Node("gnss_compass")
 {
-  // private_nh_.getParam("map_frame", map_frame_);
-  // private_nh_.getParam("base_frame", base_frame_);
-  // private_nh_.getParam("use_mgrs", use_mgrs_);
-  // private_nh_.getParam("plane_num", plane_num_);
-  // private_nh_.getParam("use_change_of_sensor_frame", use_change_of_sensor_frame_);
-  // private_nh_.getParam("sensor_frame", sensor_frame_);
-  // private_nh_.getParam("gnss_frequency", gnss_frequency_);
-  // private_nh_.getParam("min_gnss_status", min_gnss_status_);
-  // private_nh_.getParam("max_gnss_status", max_gnss_status_);
-  // private_nh_.getParam("time_thresshold", time_thresshold_);
-  // private_nh_.getParam("yaw_bias", yaw_bias_);
-  // private_nh_.getParam("use_simple_roswarn", use_simple_roswarn_);
-  // private_nh_.getParam("beseline_length", beseline_length_);
-  // private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
-  // private_nh_.getParam("max_skipping_publish_num", max_skipping_publish_num_);
 
   auto node = rclcpp::Node::make_shared("gnss_compass");
-
 
   node->declare_parameter("map_frame",map_frame_);
   node->declare_parameter("base_frame",base_frame_);
@@ -36,6 +20,22 @@ GnssCompass::GnssCompass():Node("gnss_compass")
   node->declare_parameter("baseline_length",beseline_length_);
   node->declare_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
   node->declare_parameter("max_skipping_publish_num",max_skipping_publish_num_);
+
+  node->get_parameter("map_frame",map_frame_);
+  node->get_parameter("base_frame",base_frame_);
+  node->get_parameter("use_mgrs",use_mgrs_);
+  node->get_parameter("plane_num",plane_num_);
+  node->get_parameter("use_change_of_sensor_frame",use_change_of_sensor_frame_);
+  node->get_parameter("sensor_frame",sensor_frame_);
+  node->get_parameter("gnss_frequency",gnss_frequency_);
+  node->get_parameter("min_gnss_status",min_gnss_status_);
+  node->get_parameter("max_gnss_status",max_gnss_status_);
+  node->get_parameter("time_threshold",time_thresshold_);
+  node->get_parameter("yaw_bias",yaw_bias_);
+  node->get_parameter("use_simple_roswarn",use_simple_roswarn_);
+  node->get_parameter("baseline_length",beseline_length_);
+  node->get_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
+  node->get_parameter("max_skipping_publish_num",max_skipping_publish_num_);
 
   tf2_buffer_ =
       std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -352,7 +352,7 @@ void GnssCompass::timerDiagnostic()
     diag_status_msg.message = "";
     if (
       key_value_stdmap_.count("skipping_publish_num") &&
-      std::stoi(key_value_stdmap_["skipping_publish_num"]) >= max_skipping_publish_num_) {
+      std::stoi(key_value_stdmap_["skipping_publish_num"]) > max_skipping_publish_num_) {
       diag_status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
       diag_status_msg.message += "skipping_publish_num exceed limit. ";
       RCLCPP_WARN(get_logger(),"Emergency! skipping_publish_num: %d", skipping_publish_num_);

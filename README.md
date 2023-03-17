@@ -7,7 +7,7 @@ RTK positioning is required for each GNSS receiver.
 In the standard configuration, pose is only published when two antennas are in RTK-FIX.
 
 ```
-roslaunch gnss_compass gnss_compass.launch
+ros2 launch gnss_compass gnss_compass.launch.xml
 ```
 
 ## build
