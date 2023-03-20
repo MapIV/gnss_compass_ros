@@ -81,7 +81,7 @@ private:
 
   double toSec(const std_msgs::msg::Header &msg);
 
-  double calcYaw(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos);
+  double calcYaw(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos, double & baseline_length);
 
   // param
   double gnss_frequency_;

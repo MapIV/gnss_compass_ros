@@ -81,7 +81,7 @@ double GnssCompass::toSec(const std_msgs::msg::Header &msg){
   return msg.stamp.sec + msg.stamp.nanosec/1e9;
 }
 
-double GnssCompass::calcYaw(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos)
+double GnssCompass::calcYaw(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos, double & baseline_length)
 {
   double t_m = main_pos.time;
   double t_pm = previous_main_pos.time;
@@ -101,6 +101,7 @@ double GnssCompass::calcYaw(const xyzt & main_pos, const xyzt & previous_main_po
   double diff_x = sub_pos.x - x_inp;
   double diff_y = sub_pos.y - y_inp;
   double diff_z = sub_pos.z - z_inp;
+  baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
   double theta = - std::atan2(diff_x, diff_y) + yaw_bias_;
   return theta;
 }
@@ -176,7 +177,8 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
     sub_pos.x, sub_pos.y, sub_pos.z, lc_param_);
   sub_pos.time = t_s;
 
-  double theta  = calcYaw(main_pos, previous_main_pos, sub_pos);
+  double baseline_length;
+  double theta  = calcYaw(main_pos, previous_main_pos, sub_pos, baseline_length);
 
   tf2::Quaternion localization_quat;
   localization_quat.setRPY(0, 0, theta);
@@ -233,8 +235,6 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
   geometry_msgs::msg::Transform TF_sensor_to_base;
   TF_sensor_to_base = tf2::toMsg(TF2_map_to_base);
 
-  RCLCPP_WARN(get_logger(),"check: x=%f, y=%f, z=%f", TF_sensor_to_base.translation.x,TF_sensor_to_base.translation.y,TF_sensor_to_base.translation.z);
-
   transformed_pose_msg_ptr->pose.position.x = TF_sensor_to_base.translation.x;
   transformed_pose_msg_ptr->pose.position.y = TF_sensor_to_base.translation.y;
   transformed_pose_msg_ptr->pose.position.z = TF_sensor_to_base.translation.z;
@@ -243,24 +243,21 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
   transformed_pose_msg_ptr->pose.orientation.z = TF_sensor_to_base.rotation.z;
   transformed_pose_msg_ptr->pose.orientation.w = TF_sensor_to_base.rotation.w;
 
-  RCLCPP_WARN(get_logger(),"check: x=%f, y=%f, z=%f", transformed_pose_msg_ptr->pose.position.x,transformed_pose_msg_ptr->pose.position.y,transformed_pose_msg_ptr->pose.position.z);
-
   publishTF(map_frame_, "gnss_compass_base_link", *transformed_pose_msg_ptr);
 
   odom_msg_.header = transformed_pose_msg_ptr->header;
   odom_msg_.child_frame_id = "gnss_compass_base_link";
   odom_msg_.pose.pose = transformed_pose_msg_ptr->pose;
 
-  // double baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
-  // bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
-  //   baseline_length <= beseline_length_ + allowable_beseline_length_error_);
-  // if(!is_beseline_ok)
-  // {
-  //   RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
-  //   // illigal_odom_pub_->publish(odom_msg_);
-  //   return;
-  // }
-  // RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+  bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
+    baseline_length <= beseline_length_ + allowable_beseline_length_error_);
+  if(!is_beseline_ok)
+  {
+    RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+    illigal_odom_pub_->publish(odom_msg_);
+    return;
+  }
+  RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
 
   pose_pub_->publish(*transformed_pose_msg_ptr);
   odom_pub_->publish(odom_msg_);
