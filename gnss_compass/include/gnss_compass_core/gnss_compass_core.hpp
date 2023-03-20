@@ -28,6 +28,14 @@ public:
   ~GnssCompass();
 
 private:
+  struct xyzt
+  {
+    double x;
+    double y;
+    double z;
+    double time;
+  };
+
   void callbackMainGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  maingga_msg_ptr);
   void callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  subgga_msg_ptr);
 
@@ -73,12 +81,7 @@ private:
 
   double toSec(const std_msgs::msg::Header &msg);
 
-  struct xyz
-  {
-    double x;
-    double y;
-    double z;
-  };
+  double calcYaw(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos);
 
   // param
   double gnss_frequency_;

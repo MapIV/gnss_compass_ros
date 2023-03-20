@@ -81,6 +81,30 @@ double GnssCompass::toSec(const std_msgs::msg::Header &msg){
   return msg.stamp.sec + msg.stamp.nanosec/1e9;
 }
 
+double GnssCompass::calcYaw(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos)
+{
+  double t_m = main_pos.time;
+  double t_pm = previous_main_pos.time;
+  double t_s = sub_pos.time;
+  // interpotation: x = a * t + b
+  // m:main, pm:previous main, s:sub
+  auto f = [](double x_m, double x_pm, double t_m, double t_pm, double t_s){
+    double a = (x_m - x_pm) / (t_m - t_pm);
+    double b = x_m - a * t_m;
+    return a * t_s + b;
+  };
+
+  double x_inp = f(main_pos.x, previous_main_pos.x, t_m, t_pm, t_s);
+  double y_inp = f(main_pos.y, previous_main_pos.y, t_m, t_pm, t_s);
+  double z_inp = f(main_pos.z, previous_main_pos.z, t_m, t_pm, t_s);
+
+  double diff_x = sub_pos.x - x_inp;
+  double diff_y = sub_pos.y - y_inp;
+  double diff_z = sub_pos.z - z_inp;
+  double theta = - std::atan2(diff_x, diff_y) + yaw_bias_;
+  return theta;
+}
+
 
 void GnssCompass::callbackMainGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  maingga_msg_ptr)
 {
@@ -134,37 +158,25 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
 
   skipping_publish_num_ = 0;
 
-  xyz main_pos, previous_main_pos, sub_pos;
+  xyzt main_pos, previous_main_pos, sub_pos;
   double navsat_lat, navsat_lon, previous_navsat_lat, previous_navsat_lon;
 
   ggall2fixll(maingga_msg_ptr_, navsat_lat, navsat_lon);
   llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
     main_pos.x, main_pos.y, main_pos.z, lc_param_);
+  main_pos.time = t_m;
 
   ggall2fixll(previous_maingga_msg_ptr_, previous_navsat_lat, previous_navsat_lon);
   llh_converter_.convertDeg2XYZ(previous_navsat_lat, previous_navsat_lon, previous_maingga_msg_ptr_->alt,
     previous_main_pos.x, previous_main_pos.y, previous_main_pos.z, lc_param_);
-
-  // interpotation: x = a * t + b
-  // m:main, pm:previous main, s:sub
-  auto f = [](double x_m, double x_pm, double t_m, double t_pm, double t_s){
-    double a = (x_m - x_pm) / (t_m - t_pm);
-    double b = x_m - a * t_m;
-    return a * t_s + b;
-  };
-
-  double x_inp = f(main_pos.x, previous_main_pos.x, t_m, t_pm, t_s);
-  double y_inp = f(main_pos.y, previous_main_pos.y, t_m, t_pm, t_s);
-  double z_inp = f(main_pos.z, previous_main_pos.z, t_m, t_pm, t_s);
+  previous_main_pos.time = t_pm;
 
   ggall2fixll(subgga_msg_ptr, navsat_lat, navsat_lon);
   llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
     sub_pos.x, sub_pos.y, sub_pos.z, lc_param_);
+  sub_pos.time = t_s;
 
-  double diff_x = sub_pos.x - x_inp;
-  double diff_y = sub_pos.y - y_inp;
-  double diff_z = sub_pos.z - z_inp;
-  double theta = - std::atan2(diff_x, diff_y) + yaw_bias_;
+  double theta  = calcYaw(main_pos, previous_main_pos, sub_pos);
 
   tf2::Quaternion localization_quat;
   localization_quat.setRPY(0, 0, theta);
@@ -239,16 +251,16 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
   odom_msg_.child_frame_id = "gnss_compass_base_link";
   odom_msg_.pose.pose = transformed_pose_msg_ptr->pose;
 
-  double baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
-  bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
-    baseline_length <= beseline_length_ + allowable_beseline_length_error_);
-  if(!is_beseline_ok)
-  {
-    RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
-    illigal_odom_pub_->publish(odom_msg_);
-    return;
-  }
-  RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+  // double baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
+  // bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
+  //   baseline_length <= beseline_length_ + allowable_beseline_length_error_);
+  // if(!is_beseline_ok)
+  // {
+  //   RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+  //   // illigal_odom_pub_->publish(odom_msg_);
+  //   return;
+  // }
+  // RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
 
   pose_pub_->publish(*transformed_pose_msg_ptr);
   odom_pub_->publish(odom_msg_);

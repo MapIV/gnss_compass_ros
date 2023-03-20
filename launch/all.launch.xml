@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <launch>
-  <arg name="input_main_gnss_topic" default="/main/mosaic/gga" description="Main gnss topic"/>
-  <arg name="input_sub_gnss_topic" default="/sub/mosaic/gga" description="Sub gnss topic"/>
+  <arg name="input_main_gga_topic" default="/main/mosaic/gga" description="Main gnss topic"/>
+  <arg name="input_sub_gga_topic" default="/sub/mosaic/gga" description="Sub gnss topic"/>
   <arg name="output_pose_topic" default="gnss_pose" description="Estimated self position" />
 
   <!-- <node pkg="rviz2" exec="rviz2" name="rviz2" args="-d $(find-pkg-share gnss_compass)/rviz/rviz.rviz"/> -->
@@ -13,8 +13,8 @@
   <include file="$(dirname)/nmea2fix.launch.xml"/>
   <include file="$(find-pkg-share gnss_compass)/launch/gnss_compass.launch.xml">
       <!-- <param name="/use_sim_time" value="true" /> -->
-      <arg name="input_main_gnss_topic" value="$(var input_main_gnss_topic)"/>
-      <arg name="input_sub_gnss_topic" value="$(var input_sub_gnss_topic)"/>
+      <arg name="input_main_gga_topic" value="$(var input_main_gga_topic)"/>
+      <arg name="input_sub_gga_topic" value="$(var input_sub_gga_topic)"/>
       <arg name="output_pose_topic" value="$(var output_pose_topic)" />
   </include>
 
