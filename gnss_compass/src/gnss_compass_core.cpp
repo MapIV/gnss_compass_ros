@@ -124,59 +124,8 @@ void GnssCompass::callbackMainGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  m
 
 }
 
-void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  subgga_msg_ptr)
+void GnssCompass::processGnss(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos, std_msgs::msg::Header main_antenna_header)
 {
-  if (maingga_msg_ptr_ == nullptr || previous_maingga_msg_ptr_ == nullptr) {
-    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Main is not subscrubbed.");
-    skipping_publish_num_++;
-    return;
-  }
-  double t_pm = toSec(previous_maingga_msg_ptr_->header);
-  double t_m = toSec(maingga_msg_ptr_->header);
-  double dt_mm = t_pm - t_m;
-  if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) { // Up to 150% allowed
-    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_mm %lf.", dt_mm);
-    skipping_publish_num_++;
-    return;
-  }
-
-  double t_s = toSec(subgga_msg_ptr->header);
-  double dt_ms = t_s - t_m;
-  if(std::abs(dt_ms) > time_thresshold_ || dt_ms < 0) {
-    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_ms %lf.", dt_ms);
-    skipping_publish_num_++;
-    return;
-  }
-
-  int gps_qual = subgga_msg_ptr->gps_qual;
-  bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
-  if(!is_gnss_status_ok)
-  {
-    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Sub is not fixed %d", subgga_msg_ptr->gps_qual);
-    skipping_publish_num_++;
-    return;
-  }
-
-  skipping_publish_num_ = 0;
-
-  xyzt main_pos, previous_main_pos, sub_pos;
-  double navsat_lat, navsat_lon, previous_navsat_lat, previous_navsat_lon;
-
-  ggall2fixll(maingga_msg_ptr_, navsat_lat, navsat_lon);
-  llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
-    main_pos.x, main_pos.y, main_pos.z, lc_param_);
-  main_pos.time = t_m;
-
-  ggall2fixll(previous_maingga_msg_ptr_, previous_navsat_lat, previous_navsat_lon);
-  llh_converter_.convertDeg2XYZ(previous_navsat_lat, previous_navsat_lon, previous_maingga_msg_ptr_->alt,
-    previous_main_pos.x, previous_main_pos.y, previous_main_pos.z, lc_param_);
-  previous_main_pos.time = t_pm;
-
-  ggall2fixll(subgga_msg_ptr, navsat_lat, navsat_lon);
-  llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
-    sub_pos.x, sub_pos.y, sub_pos.z, lc_param_);
-  sub_pos.time = t_s;
-
   double baseline_length;
   double theta  = calcYaw(main_pos, previous_main_pos, sub_pos, baseline_length);
 
@@ -185,7 +134,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
   geometry_msgs::msg::Quaternion quat = tf2::toMsg(localization_quat);
 
   geometry_msgs::msg::PoseStamped pose_msg;
-  pose_msg.header = maingga_msg_ptr_->header;
+  pose_msg.header = main_antenna_header;
   pose_msg.header.frame_id = "map";
   pose_msg.pose.position.x = main_pos.x;
   pose_msg.pose.position.y = main_pos.y;
@@ -199,7 +148,7 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
   }
   else
   {
-    sensor_frame = maingga_msg_ptr_->header.frame_id;
+    sensor_frame = main_antenna_header.frame_id;
   }
 
   // get TF sensor to base
@@ -253,14 +202,73 @@ void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  su
     baseline_length <= beseline_length_ + allowable_beseline_length_error_);
   if(!is_beseline_ok)
   {
-    RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+    RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf", baseline_length, theta * 180 / M_PI);
     illigal_odom_pub_->publish(odom_msg_);
     return;
   }
-  RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+  RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf", baseline_length, theta * 180 / M_PI);
 
   pose_pub_->publish(*transformed_pose_msg_ptr);
   odom_pub_->publish(odom_msg_);
+ return;
+}
+
+void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  subgga_msg_ptr)
+{
+  if (maingga_msg_ptr_ == nullptr || previous_maingga_msg_ptr_ == nullptr) {
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Main is not subscrubbed.");
+    skipping_publish_num_++;
+    return;
+  }
+  double t_pm = toSec(previous_maingga_msg_ptr_->header);
+  double t_m = toSec(maingga_msg_ptr_->header);
+  double dt_mm = t_pm - t_m;
+  if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) { // Up to 150% allowed
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_mm %lf.", dt_mm);
+    skipping_publish_num_++;
+    return;
+  }
+
+  double t_s = toSec(subgga_msg_ptr->header);
+  double dt_ms = t_s - t_m;
+  if(std::abs(dt_ms) > time_thresshold_ || dt_ms < 0) {
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_ms %lf.", dt_ms);
+    skipping_publish_num_++;
+    return;
+  }
+
+  int gps_qual = subgga_msg_ptr->gps_qual;
+  bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
+  if(!is_gnss_status_ok)
+  {
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Sub is not fixed %d", subgga_msg_ptr->gps_qual);
+    skipping_publish_num_++;
+    return;
+  }
+
+  skipping_publish_num_ = 0;
+
+  xyzt main_pos, previous_main_pos, sub_pos;
+  double navsat_lat, navsat_lon, previous_navsat_lat, previous_navsat_lon;
+
+  ggall2fixll(maingga_msg_ptr_, navsat_lat, navsat_lon);
+  llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
+    main_pos.x, main_pos.y, main_pos.z, lc_param_);
+  main_pos.time = t_m;
+
+  ggall2fixll(previous_maingga_msg_ptr_, previous_navsat_lat, previous_navsat_lon);
+  llh_converter_.convertDeg2XYZ(previous_navsat_lat, previous_navsat_lon, previous_maingga_msg_ptr_->alt,
+    previous_main_pos.x, previous_main_pos.y, previous_main_pos.z, lc_param_);
+  previous_main_pos.time = t_pm;
+
+  ggall2fixll(subgga_msg_ptr, navsat_lat, navsat_lon);
+  llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr_->alt,
+    sub_pos.x, sub_pos.y, sub_pos.z, lc_param_);
+  sub_pos.time = t_s;
+
+  std_msgs::msg::Header main_antenna_header = maingga_msg_ptr_->header;
+
+  processGnss(main_pos, previous_main_pos, sub_pos, main_antenna_header);
 
 }
 

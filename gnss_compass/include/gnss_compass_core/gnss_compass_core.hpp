@@ -83,6 +83,9 @@ private:
 
   double calcYaw(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos, double & baseline_length);
 
+  void processGnss(const xyzt & main_pos, const xyzt & previous_main_pos, const xyzt & sub_pos,
+    std_msgs::msg::Header main_antenna_header);
+
   // param
   double gnss_frequency_;
   int min_gnss_status_;
