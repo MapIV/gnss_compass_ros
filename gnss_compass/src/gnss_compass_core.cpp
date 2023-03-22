@@ -2,47 +2,44 @@
 
 GnssCompass::GnssCompass():Node("gnss_compass")
 {
-
-  auto node = rclcpp::Node::make_shared("gnss_compass");
-
   int input_gnss_type;
   bool use_mgrs;
   int plane_num;
 
-  node->declare_parameter("map_frame",map_frame_);
-  node->declare_parameter("base_frame",base_frame_);
-  node->declare_parameter("use_mgrs",use_mgrs);
-  node->declare_parameter("plane_num",plane_num);
-  node->declare_parameter("use_change_of_sensor_frame",use_change_of_sensor_frame_);
-  node->declare_parameter("sensor_frame",sensor_frame_);
-  node->declare_parameter("gnss_frequency",gnss_frequency_);
-  node->declare_parameter("input_gnss_type",input_gnss_type);
-  node->declare_parameter("min_gnss_status",min_gnss_status_);
-  node->declare_parameter("max_gnss_status",max_gnss_status_);
-  node->declare_parameter("time_threshold",time_thresshold_);
-  node->declare_parameter("yaw_bias",yaw_bias_);
-  node->declare_parameter("use_simple_roswarn",use_simple_roswarn_);
-  node->declare_parameter("baseline_length",beseline_length_);
-  node->declare_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
-  node->declare_parameter("max_skipping_publish_num",max_skipping_publish_num_);
+  this->declare_parameter("map_frame",map_frame_);
+  this->declare_parameter("base_frame",base_frame_);
+  this->declare_parameter("use_mgrs",use_mgrs);
+  this->declare_parameter("plane_num",plane_num);
+  this->declare_parameter("use_change_of_sensor_frame",use_change_of_sensor_frame_);
+  this->declare_parameter("sensor_frame",sensor_frame_);
+  this->declare_parameter("gnss_frequency",gnss_frequency_);
+  this->declare_parameter("input_gnss_type",input_gnss_type);
+  this->declare_parameter("min_gnss_status",min_gnss_status_);
+  this->declare_parameter("max_gnss_status",max_gnss_status_);
+  this->declare_parameter("time_threshold",time_thresshold_);
+  this->declare_parameter("yaw_bias",yaw_bias_);
+  this->declare_parameter("use_simple_roswarn",use_simple_roswarn_);
+  this->declare_parameter("baseline_length",beseline_length_);
+  this->declare_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
+  this->declare_parameter("max_skipping_publish_num",max_skipping_publish_num_);
 
-  node->get_parameter("map_frame",map_frame_);
-  node->get_parameter("base_frame",base_frame_);
-  node->get_parameter("use_mgrs",use_mgrs);
-  node->get_parameter("plane_num",plane_num);
-  node->get_parameter("use_change_of_sensor_frame",use_change_of_sensor_frame_);
-  node->get_parameter("sensor_frame",sensor_frame_);
-  node->get_parameter("gnss_frequency",gnss_frequency_);
-  node->get_parameter("input_gnss_type",input_gnss_type);
-  node->get_parameter("min_gnss_status",min_gnss_status_);
-  node->get_parameter("max_gnss_status",max_gnss_status_);
-  node->get_parameter("fix_covariance_thershold",fix_covariance_thershold_);
-  node->get_parameter("time_threshold",time_thresshold_);
-  node->get_parameter("yaw_bias",yaw_bias_);
-  node->get_parameter("use_simple_roswarn",use_simple_roswarn_);
-  node->get_parameter("baseline_length",beseline_length_);
-  node->get_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
-  node->get_parameter("max_skipping_publish_num",max_skipping_publish_num_);
+  this->get_parameter("map_frame",map_frame_);
+  this->get_parameter("base_frame",base_frame_);
+  this->get_parameter("use_mgrs",use_mgrs);
+  this->get_parameter("plane_num",plane_num);
+  this->get_parameter("use_change_of_sensor_frame",use_change_of_sensor_frame_);
+  this->get_parameter("sensor_frame",sensor_frame_);
+  this->get_parameter("gnss_frequency",gnss_frequency_);
+  this->get_parameter("input_gnss_type",input_gnss_type);
+  this->get_parameter("min_gnss_status",min_gnss_status_);
+  this->get_parameter("max_gnss_status",max_gnss_status_);
+  this->get_parameter("fix_covariance_thershold",fix_covariance_thershold_);
+  this->get_parameter("time_threshold",time_thresshold_);
+  this->get_parameter("yaw_bias",yaw_bias_);
+  this->get_parameter("use_simple_roswarn",use_simple_roswarn_);
+  this->get_parameter("baseline_length",beseline_length_);
+  this->get_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
+  this->get_parameter("max_skipping_publish_num",max_skipping_publish_num_);
 
   tf2_buffer_ =
       std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -102,35 +99,36 @@ double GnssCompass::toSec(const std_msgs::msg::Header &msg){
 
 void GnssCompass::callbackMainFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr  mainfix_msg_ptr)
 {
+  xyzts main_pos;
   double fix_covariance = mainfix_msg_ptr->position_covariance[0] ;
   bool is_gnss_status_ok = (fix_covariance <= fix_covariance_thershold_);
   if(!is_gnss_status_ok)
   {
     if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Main fix covariance is too large. position_covariance[0] is %f", fix_covariance);
-    main_pos_.status = false;
+    main_pos.status = false;
     return;
   }
-  else main_pos_.status = true;
-
-  if(mainfix_msg_ptr != nullptr)
-  {
-    previous_main_pos_ = main_pos_;
-  }
-  previous_main_pos_ = main_pos_;
+  else main_pos.status = true;
 
   main_antenna_header_ = mainfix_msg_ptr->header;
 
   double navsat_lat, navsat_lon;
   llh_converter_.convertDeg2XYZ(mainfix_msg_ptr->latitude, mainfix_msg_ptr->longitude, mainfix_msg_ptr->altitude,
-    main_pos_.x, main_pos_.y, main_pos_.z, lc_param_);
-  main_pos_.time = toSec(mainfix_msg_ptr->header);
+    main_pos.x, main_pos.y, main_pos.z, lc_param_);
+  main_pos.time = toSec(mainfix_msg_ptr->header);
+
+  if(mainfix_msg_ptr != nullptr)
+  {
+    previous_main_pos_ = main_pos_;
+  }
+  main_pos_ = main_pos;
 
 }
 
 void GnssCompass::callbackSubFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr  subfix_msg_ptr)
 {
 
-  xyzts main_pos, previous_main_pos, sub_pos;
+  xyzts sub_pos;
   double navsat_lat, navsat_lon, previous_navsat_lat, previous_navsat_lon;
 
   llh_converter_.convertDeg2XYZ(subfix_msg_ptr->latitude, subfix_msg_ptr->longitude, subfix_msg_ptr->altitude,
@@ -138,6 +136,7 @@ void GnssCompass::callbackSubFix(const sensor_msgs::msg::NavSatFix::ConstSharedP
   double fix_covariance = subfix_msg_ptr->position_covariance[0] ;
   bool is_gnss_status_ok = (fix_covariance <= fix_covariance_thershold_);
   sub_pos.status = is_gnss_status_ok;
+  sub_pos.time = toSec(subfix_msg_ptr->header);
 
   processGnss(main_pos_, previous_main_pos_, sub_pos, main_antenna_header_);
 
@@ -145,35 +144,39 @@ void GnssCompass::callbackSubFix(const sensor_msgs::msg::NavSatFix::ConstSharedP
 
 void GnssCompass::callbackMainGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  maingga_msg_ptr)
 {
+  xyzts main_pos;
   int gps_qual = maingga_msg_ptr->gps_qual;
   bool is_gnss_status_ok = (min_gnss_status_ <= gps_qual && gps_qual <= max_gnss_status_);
   if(!is_gnss_status_ok)
   {
     if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Main is not fixed. status is %d", maingga_msg_ptr->gps_qual);
-    main_pos_.status = false;
+    main_pos.status = false;
     return;
   }
-  else main_pos_.status = true;
-
-  if(maingga_msg_ptr != nullptr)
+  else
   {
-    previous_main_pos_ = main_pos_;
+    main_pos.status = true;
   }
-  previous_main_pos_ = main_pos_;
 
   main_antenna_header_ = maingga_msg_ptr->header;
 
   double navsat_lat, navsat_lon;
   ggall2fixll(maingga_msg_ptr, navsat_lat, navsat_lon);
   llh_converter_.convertDeg2XYZ(navsat_lat, navsat_lon, maingga_msg_ptr->alt,
-    main_pos_.x, main_pos_.y, main_pos_.z, lc_param_);
-  main_pos_.time = toSec(maingga_msg_ptr->header);
+    main_pos.x, main_pos.y, main_pos.z, lc_param_);
+  main_pos.time = toSec(maingga_msg_ptr->header);
+
+  if(maingga_msg_ptr != nullptr)
+  {
+    previous_main_pos_ = main_pos_;
+  }
+
+  main_pos_ = main_pos;
 
 }
 
-void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  subgga_msg_ptr)
+void GnssCompass::callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr subgga_msg_ptr)
 {
-
   xyzts main_pos, previous_main_pos, sub_pos;
   double navsat_lat, navsat_lon, previous_navsat_lat, previous_navsat_lon;
 
@@ -210,6 +213,7 @@ double GnssCompass::calcYaw(const xyzts & main_pos, const xyzts & previous_main_
   double diff_y = sub_pos.y - y_inp;
   double diff_z = sub_pos.z - z_inp;
   baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
+
   double theta = - std::atan2(diff_x, diff_y) + yaw_bias_;
   return theta;
 }
@@ -217,21 +221,8 @@ double GnssCompass::calcYaw(const xyzts & main_pos, const xyzts & previous_main_
 void GnssCompass::processGnss(const xyzts & main_pos, const xyzts & previous_main_pos, const xyzts & sub_pos, std_msgs::msg::Header main_antenna_header)
 {
 
-  if (!main_pos_.status || !previous_main_pos_.status) {
-    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Main is not subscrubbed.");
-    skipping_publish_num_++;
-    return;
-  }
-
-  if(!sub_pos.status)
-  {
-    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Poor performance of Gub GNSS positioning solutions");
-    skipping_publish_num_++;
-    return;
-  }
-
   double dt_mm = previous_main_pos.time - main_pos.time;
-  double dt_ms = sub_pos.time; - main_pos.time;
+  double dt_ms = sub_pos.time - main_pos.time;
   if(std::abs(dt_mm) > 1.5 * 1.0 / gnss_frequency_) { // Up to 150% allowed
     if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_mm %lf.", dt_mm);
     skipping_publish_num_++;
@@ -239,6 +230,19 @@ void GnssCompass::processGnss(const xyzts & main_pos, const xyzts & previous_mai
   }
   if(std::abs(dt_ms) > time_thresshold_ || dt_ms < 0) {
     if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"The difference between timestamps is large:dt_ms %lf.", dt_ms);
+    skipping_publish_num_++;
+    return;
+  }
+
+  if (!main_pos.status || !previous_main_pos.status || dt_mm == 0) {
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Poor performance of Main GNSS positioning solutions");
+    skipping_publish_num_++;
+    return;
+  }
+
+  if(!sub_pos.status)
+  {
+    if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Poor performance of Sub GNSS positioning solutions");
     skipping_publish_num_++;
     return;
   }
@@ -325,7 +329,7 @@ void GnssCompass::processGnss(const xyzts & main_pos, const xyzts & previous_mai
     illigal_odom_pub_->publish(odom_msg_);
     return;
   }
-  RCLCPP_ERROR(get_logger(),"normal       :l %lf, yaw %lf", baseline_length, theta * 180 / M_PI);
+  if(!use_simple_roswarn_) RCLCPP_INFO(get_logger(),"normal       :l %lf, yaw %lf", baseline_length, theta * 180 / M_PI);
 
   pose_pub_->publish(*transformed_pose_msg_ptr);
   odom_pub_->publish(odom_msg_);
@@ -356,7 +360,7 @@ void GnssCompass::timerDiagnostic()
       std::stoi(key_value_stdmap_["skipping_publish_num"]) > max_skipping_publish_num_) {
       diag_status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
       diag_status_msg.message += "skipping_publish_num exceed limit. ";
-      RCLCPP_WARN(get_logger(),"Emergency! skipping_publish_num: %d", skipping_publish_num_);
+      if(!use_simple_roswarn_) RCLCPP_WARN(get_logger(),"Emergency! skipping_publish_num: %d", skipping_publish_num_);
     }
 
     diagnostic_msgs::msg::DiagnosticArray diag_msg;
