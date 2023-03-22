@@ -12,6 +12,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nmea_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(llh_converter REQUIRED)
@@ -28,11 +29,13 @@ include_directories(
 add_executable(gnss_compass
         src/gnss_compass_node.cpp
         src/gnss_compass_core.cpp
+        src/util.cpp
 )
 
 ament_target_dependencies(gnss_compass
   rclcpp
   nmea_msgs
+  sensor_msgs
   geometry_msgs
   nav_msgs
   llh_converter

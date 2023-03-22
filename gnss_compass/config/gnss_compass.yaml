@@ -16,13 +16,13 @@
     # Main gnss antenna data acquisition cycle
     # If the time difference between main and sub is 1/gnss_frequency[sec], no calculation is performed.
     gnss_frequency : 50.0
-    # 0 : nmea_msgs/Gpgga  1 : sensor_msgs
+    # 0 : nmea_msgs/Gpgga  1 : sensor_msgs/NavSatFix
     input_gnss_type : 0
     # Upper and lower limits of staratus using GNSS if input_gnss_type is 0
     min_gnss_status : 4
     max_gnss_status : 4
-    # Minimum covariance of the pose topics to be published [m] if input_gnss_type is 1
-    fix_std_pos_thres : 0.1
+    # Minimum covariance of the pose topics to be published [m^2] if input_gnss_type is 1
+    fix_covariance_thershold : 0.01
     # Tolerance for the difference between the timestamps of the two antennas [sec]
     time_threshold : 0.03
     # Yaw bias between the direction of travel and the vector created between the antennas
@@ -31,7 +31,7 @@
     use_simple_roswarn : true
     # Distance between antennas in three dimensions [m]
     baseline_length: 1.00
-    # If the calculated baseline length has an error greater than or equal to this threshold, 
+    # If the calculated baseline length has an error greater than or equal to this threshold,
     # it is determined to be a missed FIX [m]
     allowable_baseline_length_error: 0.20
     # If the number of times that pose is not calculated consecutively exceeds this value, an error is output by diagnostics.
