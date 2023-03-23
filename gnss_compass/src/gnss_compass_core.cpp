@@ -75,6 +75,7 @@ GnssCompass::GnssCompass():Node("gnss_compass")
     rclcpp::shutdown();
   }
   pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("gnss_compass_pose", 10);
+  pose_with_covariance_pub_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("gnss_compass_pose_with_covariance", 10);
   odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("gnss_compass_odom", 10);
   illigal_odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("illigal_gnss_compass_odom", 10);
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 10);
@@ -331,7 +332,22 @@ void GnssCompass::processGnss(const xyzts & main_pos, const xyzts & previous_mai
   }
   if(!use_simple_roswarn_) RCLCPP_INFO(get_logger(),"normal       :l %lf, yaw %lf", baseline_length, theta * 180 / M_PI);
 
+  geometry_msgs::msg::PoseWithCovarianceStamped pose_with_covariance;
+  pose_with_covariance.header = transformed_pose_msg_ptr->header;
+  pose_with_covariance.pose.pose = transformed_pose_msg_ptr->pose;
+  // TODO(Map IV): temporary value
+  double std_dev_roll = 100; // [rad]
+  double std_dev_pitch = 100; // [rad]
+  double std_dev_yaw = std::atan2(0.05, baseline_length);
+  pose_with_covariance.pose.covariance[0] = 0.01;
+  pose_with_covariance.pose.covariance[7] = 0.01;
+  pose_with_covariance.pose.covariance[14] = 0.04;
+  pose_with_covariance.pose.covariance[21] = std_dev_roll * std_dev_roll;
+  pose_with_covariance.pose.covariance[28] = std_dev_pitch * std_dev_pitch;
+  pose_with_covariance.pose.covariance[35] = std_dev_yaw * std_dev_yaw;
+
   pose_pub_->publish(*transformed_pose_msg_ptr);
+  pose_with_covariance_pub_->publish(pose_with_covariance);
   odom_pub_->publish(odom_msg_);
  return;
 }

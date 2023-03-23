@@ -12,7 +12,7 @@
     # Whether sensor_frame name is specified in yaml or not
     use_change_of_sensor_frame: true
     # If use_change_of_sensor_frame is true, the following is used for sensor_frame to base_link tf conversion.
-    sensor_frame: "gnss_link"
+    sensor_frame: "gnss"
     # Main gnss antenna data acquisition cycle
     # If the time difference between main and sub is 1/gnss_frequency[sec], no calculation is performed.
     gnss_frequency : 50.0
