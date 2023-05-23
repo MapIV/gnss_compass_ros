@@ -19,6 +19,7 @@ GnssCompass::GnssCompass():Node("gnss_compass")
   this->declare_parameter("time_threshold",time_thresshold_);
   this->declare_parameter("yaw_bias",yaw_bias_);
   this->declare_parameter("use_simple_roswarn",use_simple_roswarn_);
+  this->declare_parameter("use_beseline_outlier_detection",use_beseline_outlier_detection_);
   this->declare_parameter("baseline_length",beseline_length_);
   this->declare_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
   this->declare_parameter("max_skipping_publish_num",max_skipping_publish_num_);
@@ -37,6 +38,7 @@ GnssCompass::GnssCompass():Node("gnss_compass")
   this->get_parameter("time_threshold",time_thresshold_);
   this->get_parameter("yaw_bias",yaw_bias_);
   this->get_parameter("use_simple_roswarn",use_simple_roswarn_);
+  this->get_parameter("use_beseline_outlier_detection",use_beseline_outlier_detection_);
   this->get_parameter("baseline_length",beseline_length_);
   this->get_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
   this->get_parameter("max_skipping_publish_num",max_skipping_publish_num_);
@@ -324,13 +326,16 @@ void GnssCompass::processGnss(const xyzts & main_pos, const xyzts & previous_mai
 
   bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
     baseline_length <= beseline_length_ + allowable_beseline_length_error_);
-  if(!is_beseline_ok)
+  if(use_beseline_outlier_detection_)
   {
-    RCLCPP_WARN(get_logger(),"mayby mis-FIX:l %lf, yaw,%lf", baseline_length, theta * 180 / M_PI);
-    illigal_odom_pub_->publish(odom_msg_);
-    return;
+    if(!is_beseline_ok)
+    {
+      RCLCPP_WARN(get_logger(),"outlier FIX:l %lf, yaw,%lf", baseline_length, theta * 180 / M_PI);
+      illigal_odom_pub_->publish(odom_msg_);
+      return;
+    }
+    if(!use_simple_roswarn_) RCLCPP_INFO(get_logger(),"normal       :l %lf, yaw %lf", baseline_length, theta * 180 / M_PI);
   }
-  if(!use_simple_roswarn_) RCLCPP_INFO(get_logger(),"normal       :l %lf, yaw %lf", baseline_length, theta * 180 / M_PI);
 
   geometry_msgs::msg::PoseWithCovarianceStamped pose_with_covariance;
   pose_with_covariance.header = transformed_pose_msg_ptr->header;
