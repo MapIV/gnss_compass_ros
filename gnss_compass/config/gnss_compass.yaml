@@ -29,6 +29,7 @@
     yaw_bias: 0.0
     # Minimize number of ROS_WARN
     use_simple_roswarn : true
+    use_beseline_outlier_detection : false
     # Distance between antennas in three dimensions [m]
     baseline_length: 1.00
     # If the calculated baseline length has an error greater than or equal to this threshold,
