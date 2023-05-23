@@ -89,6 +89,7 @@ private:
   double yaw_bias_;
   bool use_simple_roswarn_;
   double beseline_length_;
+  bool use_beseline_outlier_detection_;
   double allowable_beseline_length_error_;
   int max_skipping_publish_num_;
 };

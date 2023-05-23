@@ -9,7 +9,7 @@ plane_num: 7
 # Whether sensor_frame name is specified in yaml or not
 use_change_of_sensor_frame: true
 # If use_change_of_sensor_frame is true, the following is used for sensor_frame to base_link tf conversion.
-sensor_frame: "gnss_link"
+sensor_frame: "gnss"
 # Main gnss antenna data acquisition cycle
 # If the time difference between main and sub is 1/gnss_frequency[sec], no calculation is performed.
 gnss_frequency : 50.0
@@ -22,9 +22,10 @@ time_thresshold : 0.03
 yaw_bias: 0.0
 # Minimize number of ROS_WARN
 use_simple_roswarn : true
+use_beseline_outlier_detection : false
 # Distance between antennas in three dimensions [m]
 beseline_length: 1.30
-# If the calculated baseline length has an error greater than or equal to this threshold, 
+# If the calculated baseline length has an error greater than or equal to this threshold,
 # it is determined to be a missed FIX [m]
 allowable_beseline_length_error: 0.05
 # If the number of times that pose is not calculated consecutively exceeds this value, an error is output by diagnostics.

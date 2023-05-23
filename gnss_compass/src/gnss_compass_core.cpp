@@ -17,6 +17,7 @@ GnssCompass::GnssCompass(ros::NodeHandle nh, ros::NodeHandle private_nh)
   private_nh_.getParam("time_thresshold", time_thresshold_);
   private_nh_.getParam("yaw_bias", yaw_bias_);
   private_nh_.getParam("use_simple_roswarn", use_simple_roswarn_);
+  private_nh_.getParam("use_beseline_outlier_detection", use_beseline_outlier_detection_);
   private_nh_.getParam("beseline_length", beseline_length_);
   private_nh_.getParam("allowable_beseline_length_error", allowable_beseline_length_error_);
   private_nh_.getParam("max_skipping_publish_num", max_skipping_publish_num_);
@@ -209,16 +210,19 @@ void GnssCompass::callbackSubGga(const nmea_msgs::Gpgga::ConstPtr & subgga_msg_p
   double baseline_length = std::sqrt(pow(diff_x, 2) + pow(diff_y, 2) + pow(diff_z, 2));
   bool is_beseline_ok = (beseline_length_ - allowable_beseline_length_error_ <= baseline_length &&
     baseline_length <= beseline_length_ + allowable_beseline_length_error_);
-  if(!is_beseline_ok)
+  if(use_beseline_outlier_detection_)
   {
-    ROS_WARN("mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
-    illigal_odom_pub_.publish(odom_msg_);
-    return;
+    if(!is_beseline_ok)
+    {
+      ROS_WARN("mayby mis-FIX:l %lf, yaw,%lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+      illigal_odom_pub_.publish(odom_msg_);
+      return;
+    }
+    else {
+      ROS_INFO("normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
+    }
   }
-  else {
-    ROS_INFO("normal       :l %lf, yaw %lf, dt %lf", baseline_length, theta * 180 / M_PI, dt_ms);
-  }
-  
+
   pose_pub_.publish(transformed_pose_msg_ptr);
   odom_pub_.publish(odom_msg_);
 
