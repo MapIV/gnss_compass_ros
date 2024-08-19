@@ -1,0 +1,9 @@
+repositories:
+  util/llh_converter:
+    type: git
+    url: https://github.com/MapIV/llh_converter.git
+    version: main
+  util/nmea_converter:
+    type: git
+    url: https://github.com/MapIV/nmea_converter.git
+    version: ros1

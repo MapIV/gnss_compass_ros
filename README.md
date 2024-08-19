@@ -14,8 +14,10 @@ roslaunch gnss_compass gnss_compass.launch
 
 ```
 cd ~/catkin_ws/src
-git clone --recursive https://github.com/MapIV/gnss_compass_ros.git
-cd ..
+git clone https://github.com/MapIV/gnss_compass_ros.git
+cd gnss_compass_ros
+vcs import . < gnss_compass.repos
+cd ../..
 rosdep install --from-paths src --ignore-src -r -y
 catkin_make -DCMAKE_BUILD_TYPE=Release
 ```
