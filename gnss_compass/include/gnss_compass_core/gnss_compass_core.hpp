@@ -107,4 +107,10 @@ private:
   double beseline_length_;
   double allowable_beseline_length_error_;
   int max_skipping_publish_num_;
+  double pose_covariance_roll_std_dev_;
+  double pose_covariance_pitch_std_dev_;
+  double pose_covariance_yaw_coefficient_;
+  double pose_covariance_x_std_dev_;
+  double pose_covariance_y_std_dev_;
+  double pose_covariance_z_std_dev_;
 };

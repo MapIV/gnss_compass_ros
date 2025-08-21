@@ -37,3 +37,10 @@
     allowable_baseline_length_error: 0.20
     # If the number of times that pose is not calculated consecutively exceeds this value, an error is output by diagnostics.
     max_skipping_publish_num: 10
+    # Pose covariance parameters
+    pose_covariance_roll_std_dev: 100.0   # Standard deviation for roll [rad]
+    pose_covariance_pitch_std_dev: 100.0  # Standard deviation for pitch [rad]
+    pose_covariance_yaw_coefficient: 0.05 # Coefficient for yaw standard deviation calculation [m]
+    pose_covariance_x_std_dev: 0.1        # Standard deviation for x position [m]
+    pose_covariance_y_std_dev: 0.1        # Standard deviation for y position [m]
+    pose_covariance_z_std_dev: 0.2        # Standard deviation for z position [m]

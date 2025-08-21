@@ -16,6 +16,7 @@ GnssCompass::GnssCompass():Node("gnss_compass")
   this->declare_parameter("input_gnss_type",input_gnss_type);
   this->declare_parameter("min_gnss_status",min_gnss_status_);
   this->declare_parameter("max_gnss_status",max_gnss_status_);
+  this->declare_parameter("fix_covariance_thershold",fix_covariance_thershold_);
   this->declare_parameter("time_threshold",time_thresshold_);
   this->declare_parameter("yaw_bias",yaw_bias_);
   this->declare_parameter("use_simple_roswarn",use_simple_roswarn_);
@@ -23,6 +24,12 @@ GnssCompass::GnssCompass():Node("gnss_compass")
   this->declare_parameter("baseline_length",beseline_length_);
   this->declare_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
   this->declare_parameter("max_skipping_publish_num",max_skipping_publish_num_);
+  this->declare_parameter("pose_covariance_roll_std_dev", pose_covariance_roll_std_dev_);
+  this->declare_parameter("pose_covariance_pitch_std_dev", pose_covariance_pitch_std_dev_);
+  this->declare_parameter("pose_covariance_yaw_coefficient", pose_covariance_yaw_coefficient_);
+  this->declare_parameter("pose_covariance_x_std_dev", pose_covariance_x_std_dev_);
+  this->declare_parameter("pose_covariance_y_std_dev", pose_covariance_y_std_dev_);
+  this->declare_parameter("pose_covariance_z_std_dev", pose_covariance_z_std_dev_);
 
   this->get_parameter("map_frame",map_frame_);
   this->get_parameter("base_frame",base_frame_);
@@ -42,6 +49,12 @@ GnssCompass::GnssCompass():Node("gnss_compass")
   this->get_parameter("baseline_length",beseline_length_);
   this->get_parameter("allowable_baseline_length_error",allowable_beseline_length_error_);
   this->get_parameter("max_skipping_publish_num",max_skipping_publish_num_);
+  this->get_parameter("pose_covariance_roll_std_dev", pose_covariance_roll_std_dev_);
+  this->get_parameter("pose_covariance_pitch_std_dev", pose_covariance_pitch_std_dev_);
+  this->get_parameter("pose_covariance_yaw_coefficient", pose_covariance_yaw_coefficient_);
+  this->get_parameter("pose_covariance_x_std_dev", pose_covariance_x_std_dev_);
+  this->get_parameter("pose_covariance_y_std_dev", pose_covariance_y_std_dev_);
+  this->get_parameter("pose_covariance_z_std_dev", pose_covariance_z_std_dev_);
 
   tf2_buffer_ =
       std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -340,13 +353,13 @@ void GnssCompass::processGnss(const xyzts & main_pos, const xyzts & previous_mai
   geometry_msgs::msg::PoseWithCovarianceStamped pose_with_covariance;
   pose_with_covariance.header = transformed_pose_msg_ptr->header;
   pose_with_covariance.pose.pose = transformed_pose_msg_ptr->pose;
-  // TODO(Map IV): temporary value
-  double std_dev_roll = 100; // [rad]
-  double std_dev_pitch = 100; // [rad]
-  double std_dev_yaw = std::atan2(0.05, baseline_length);
-  pose_with_covariance.pose.covariance[0] = 0.01;
-  pose_with_covariance.pose.covariance[7] = 0.01;
-  pose_with_covariance.pose.covariance[14] = 0.04;
+  // Pose covariance parameters
+  double std_dev_roll = pose_covariance_roll_std_dev_; // [rad]
+  double std_dev_pitch = pose_covariance_pitch_std_dev_; // [rad]
+  double std_dev_yaw = std::atan2(pose_covariance_yaw_coefficient_, baseline_length);
+  pose_with_covariance.pose.covariance[0] = pose_covariance_x_std_dev_ * pose_covariance_x_std_dev_;
+  pose_with_covariance.pose.covariance[7] = pose_covariance_y_std_dev_ * pose_covariance_y_std_dev_;
+  pose_with_covariance.pose.covariance[14] = pose_covariance_z_std_dev_ * pose_covariance_z_std_dev_;
   pose_with_covariance.pose.covariance[21] = std_dev_roll * std_dev_roll;
   pose_with_covariance.pose.covariance[28] = std_dev_pitch * std_dev_pitch;
   pose_with_covariance.pose.covariance[35] = std_dev_yaw * std_dev_yaw;
