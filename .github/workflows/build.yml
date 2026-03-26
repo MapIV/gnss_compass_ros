@@ -34,7 +34,7 @@ jobs:
 
       - name: Install GeographicLib
         run: |
-          apt-get install -y libgeographic-dev geographiclib-tools geographiclib-doc
+          apt-get install -y libgeographic-dev geographiclib-tools geographiclib-doc ros-foxy-nmea-msgs
 
       - name: Build
         run: |
