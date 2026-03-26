@@ -13,7 +13,11 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/convert.h>
+#if __has_include(<tf2_geometry_msgs/tf2_geometry_msgs.hpp>)
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#else
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#endif
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
@@ -39,10 +43,10 @@ private:
     bool status = false;
   };
 
-  void callbackMainGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  msg_ptr);
-  void callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr  msg_ptr);
-  void callbackMainFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr  msg_ptr);
-  void callbackSubFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr  msg_ptr);
+  void callbackMainGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr msg_ptr);
+  void callbackSubGga(const nmea_msgs::msg::Gpgga::ConstSharedPtr msg_ptr);
+  void callbackMainFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg_ptr);
+  void callbackSubFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg_ptr);
 
   rclcpp::Subscription<nmea_msgs::msg::Gpgga>::SharedPtr maingga_sub_;
   rclcpp::Subscription<nmea_msgs::msg::Gpgga>::SharedPtr subgga_sub_;
@@ -53,7 +57,6 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr illigal_odom_pub_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
-
 
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf2_broadcaster_;
   std::shared_ptr<tf2_ros::TransformListener> tf2_listener_{nullptr};
@@ -77,23 +80,23 @@ private:
 
   int skipping_publish_num_;
 
-  void publishTF(const std::string & frame_id, const std::string & child_frame_id,
-    const geometry_msgs::msg::PoseStamped & pose_msg);
+  void publishTF(const std::string &frame_id, const std::string &child_frame_id,
+                 const geometry_msgs::msg::PoseStamped &pose_msg);
 
   bool getTransform(
-    const std::string & target_frame, const std::string & source_frame,
-    const geometry_msgs::msg::TransformStamped::SharedPtr & transform_stamped_ptr);
+      const std::string &target_frame, const std::string &source_frame,
+      const geometry_msgs::msg::TransformStamped::SharedPtr &transform_stamped_ptr);
 
-  void ggall2fixll(const nmea_msgs::msg::Gpgga::ConstSharedPtr & gga_msg_ptr, double & lat, double & lon);
+  void ggall2fixll(const nmea_msgs::msg::Gpgga::ConstSharedPtr &gga_msg_ptr, double &lat, double &lon);
 
   void timerDiagnostic();
 
   double toSec(const std_msgs::msg::Header &msg);
 
-  double calcYaw(const xyzts & main_pos, const xyzts & previous_main_pos, const xyzts & sub_pos, double & baseline_length);
+  double calcYaw(const xyzts &main_pos, const xyzts &previous_main_pos, const xyzts &sub_pos, double &baseline_length);
 
-  void processGnss(const xyzts & main_pos, const xyzts & previous_main_pos, const xyzts & sub_pos,
-    std_msgs::msg::Header main_antenna_header);
+  void processGnss(const xyzts &main_pos, const xyzts &previous_main_pos, const xyzts &sub_pos,
+                   std_msgs::msg::Header main_antenna_header);
 
   // param
   double gnss_frequency_;
