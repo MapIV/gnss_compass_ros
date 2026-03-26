@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -75,5 +75,62 @@ jobs:
         run: |
           cd ~/ros2_ws/
           source /opt/ros/foxy/setup.bash
+          rosdep install --from-paths src --ignore-src -r -y
+          colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --catkin-skip-building-tests
+
+  jazzy_build:
+    runs-on: ubuntu-24.04
+
+    container: ros:jazzy
+    services:
+      ros:
+        image: ros
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: rosdep update
+        run: |
+          apt-get update
+          rosdep update
+      - name: Create Workspace
+        run: |
+          mkdir -p ~/ros2_ws/src/
+          cp -r "$(pwd)" ~/ros2_ws/src/
+
+      - name: Patch llh_converter submodule for Jazzy CI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path.home() / "ros2_ws/src/gnss_compass_ros/util/llh_converter/CMakeLists.txt"
+          text = path.read_text()
+          text = text.replace("${GeographicLib_INCLUDE_DIRS}", "${GeographicLib_INCLUDE_DIR}")
+          text = text.replace(
+              "  PUBLIC\n    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>",
+              "  PUBLIC\n    ${GeographicLib_INCLUDE_DIR}\n    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>",
+          )
+          text = text.replace(
+              "ament_export_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)",
+              "ament_export_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${GeographicLib_INCLUDE_DIR})",
+          )
+          path.write_text(text)
+          PY
+
+      - name: Install GeographicLib
+        run: |
+          apt-get install -y libgeographiclib-dev geographiclib-tools geographiclib-doc
+
+      - name: Build
+        run: |
+          cd ~/ros2_ws/
+          source /opt/ros/jazzy/setup.bash
           rosdep install --from-paths src --ignore-src -r -y
           colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --catkin-skip-building-tests
